@@ -1,10 +1,10 @@
 # 玩转迷 文章和订阅链接
-# 更新时间: 2026-01-19 11:44:07
+# 更新时间: 2026-01-19 12:51:25
 ------------------------------------------------------------
 
 ## 文章链接
 https://wanzhuanmi.com/archives/1313
 
 ## 订阅链接
-http://wanzhuanmi.cczzuu.top/node/20260119-clash.yaml
 http://wanzhuanmi.cczzuu.top/node/20260119-v2ray.txt
+http://wanzhuanmi.cczzuu.top/node/20260119-clash.yaml
