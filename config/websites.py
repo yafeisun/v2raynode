@@ -200,7 +200,7 @@ WEBSITES = {
     },
     "oneclash": {
         "name": "OneClash",
-        "url": "https://www.oneclash.io/",
+        "url": "https://oneclash.cc/freenode",
         "enabled": True,
         "collector_key": "oneclash",  # 对应收集器插件的关键字
         "selectors": [
@@ -208,7 +208,7 @@ WEBSITES = {
             "h2 a",
             ".entry-title a",
             "article h2 a",
-            'a[href*="/free-node/"]',
+            'a[href*="/a/"]',
             'a[href*="/2026"]',
         ],
         "patterns": [
@@ -366,8 +366,8 @@ BROWSER_ONLY_SITES = [
     "wanzhuanmi",
     "cfmem",
     "telegeam",
-    "clashnodecc",     # 文章页面需要浏览器直连访问
-    "clashgithub",     # 固定文章链接需要浏览器直连访问
-    "oneclash",        # 代理访问无法获取完整内容
-    "eighty_five_la",  # Cloudflare 保护，需要浏览器绕过
+    "clashnodecc",  # 文章页面需要浏览器直连访问
+    "clashgithub",  # 固定文章链接需要浏览器直连访问
+    "oneclash",  # 代理访问无法获取完整内容
+    "la",  # Cloudflare 保护，需要浏览器绕过（使用 collector_key "la"）
 ]
