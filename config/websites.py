@@ -61,7 +61,10 @@ WEBSITES = {
         "enabled": True,
         "collector_key": "proxyqueen",  # 对应收集器插件的关键字
         "selectors": [".post-title a", "h2 a", ".entry-header a", "article h2 a"],
-        "patterns": [r'https?://[^\s\'"]*?(?:vmess|vless|trojan|hysteria|ss)[^\s\'"]*'],
+        "patterns": [
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*',
+            r'https?://[^\s\'"]*?(?:vmess|vless|trojan|hysteria|ss)[^\s\'"]*',
+        ],
     },
     "wanzhuanmi": {
         "name": "玩转迷",
@@ -131,12 +134,13 @@ WEBSITES = {
         "enabled": True,
         "collector_key": "datiya",  # 对应收集器插件的关键字
         "selectors": [
-            ".post-title a",
+            "article a",
+            ".post a",
+            'a[href*="/post/"]',
+            'a[href*="/2026"]',
+            "h1 a",
             "h2 a",
             ".entry-title a",
-            "article h2 a",
-            'a[href*="/node"]',
-            'a[href*="/free"]',
         ],
         "patterns": [
             r'https?://[^\s\'"]*\.txt[^\s\'"]*',
