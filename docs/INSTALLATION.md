@@ -305,47 +305,7 @@ pip install Flask FastAPI websockets
 
 ---
 
-### 步骤5: 安装subs-check（可选）
-
-subs-check用于节点速度测试，是可选但推荐的工具。
-
-**Linux/macOS**:
-```bash
-# 克隆subs-check
-git clone https://github.com/lnd-db/subs-check.git
-cd subs-check
-
-# 安装
-sudo make install
-
-# 验证安装
-subs-check --version
-```
-
-**Windows**:
-```bash
-# 克隆subs-check
-git clone https://github.com/lnd-db/subs-check.git
-cd subs-check
-
-# 编译（需要Go环境）
-go build -o subs-check.exe main.go
-
-# 将subs-check.exe添加到PATH
-```
-
-**Docker方式**:
-```bash
-# 拉取Docker镜像
-docker pull lnd-db/subs-check
-
-# 运行测试
-docker run --rm lnd-db/subs-check subs-check --url="你的订阅链接"
-```
-
----
-
-### 步骤6: 配置项目
+### 步骤5: 配置项目
 
 #### 基本配置
 

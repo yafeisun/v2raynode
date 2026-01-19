@@ -254,8 +254,59 @@ result/
 │   ├── eighty_five_la_info.txt
 │   └── nodetotal.txt               # 当日所有节点汇总（日期文件夹内）
 ├── nodetotal.txt                    # 所有节点汇总（根目录同步副本）
-└── nodelist.txt                     # 测试后的有效节点（可选）
+├── v2rayse.txt                     # V2RaySE网站收集的节点（独立文件）
+└── karing.txt                      # Karing延迟测试后的有效节点（独立文件）
 ```
+
+### 2. V2RaySE节点获取
+
+**说明**：V2RaySE网站使用Playwright进行浏览器自动化收集，独立于13个网站的收集流程。
+
+**工具**：`src/v2rayse_collector.py`
+
+**输出文件**：`result/v2rayse.txt`
+
+**订阅链接**：
+```
+https://raw.githubusercontent.com/yafeisun/v2raynode/refs/heads/main/result/v2rayse.txt
+```
+
+**特点**：
+- 使用浏览器自动化技术，能够获取动态加载的节点
+- 独立运行，不依赖13个网站收集器
+- 每日自动更新，节点质量较高
+
+### 3. Karing延迟测试
+
+**说明**：对收集的节点进行延迟测试，筛选出延迟小于3000ms的有效节点。
+
+**工具**：`src/speedtest/karing_latency_test.py`
+
+**输入文件**：`result/nodetotal.txt`（或其他节点文件）
+
+**输出文件**：`result/karing.txt`
+
+**订阅链接**：
+```
+https://raw.githubusercontent.com/yafeisun/v2raynode/refs/heads/main/result/karing.txt
+```
+
+**测试标准**：
+- 延迟测试：测试Google、Cloudflare等多个网站的访问延迟
+- 过滤标准：延迟 < 3000ms
+- 排序规则：按延迟从低到高排序
+- 并发测试：最多同时测试10个节点
+
+**使用方法**：
+```bash
+python3 src/speedtest/karing_latency_test.py result/nodetotal.txt result/karing.txt
+```
+
+**特点**：
+- 基于真实的HTTP请求测试延迟
+- 支持多种协议（vmess、vless、ss等）
+- 自动过滤无效节点
+- 提供详细的测试统计信息
 
 ### 2. 文件内容格式
 

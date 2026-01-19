@@ -45,7 +45,6 @@ websockets>=11.0.0
 playwright>=1.40.0
 
 # 测速工具
-# 注意：subs-check 需要单独安装，参考：https://github.com/lnd-db/subs-check
 
 # 开发和测试工具（可选）
 # pytest>=7.0.0
