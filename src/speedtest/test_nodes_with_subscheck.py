@@ -745,10 +745,6 @@ class SubsCheckTester:
             node_test_times = {}  # 记录每个节点的开始测试时间 {node_index: start_time}
             last_tested_index = -1  # 上一个测试的节点索引
 
-            # 添加调试信息
-            print(f"[DEBUG] 阶段{phase}监控开始，超时={timeout}秒，节点数={node_count}", flush=True)
-            self.logger.info(f"阶段{phase}监控开始，超时={timeout}秒，节点数={node_count}")
-
             while True:
                 # 检查总超时
                 elapsed = time.time() - start_time
@@ -978,18 +974,10 @@ class SubsCheckTester:
                                     if byte
                                     else ""
                                 )
-
-                                # 添加调试输出：每100个字符显示一次
-                                if line_count % 100 == 0:
-                                    print(f"[DEBUG] 已读取{line_count}行，当前字符: {repr(char[:50])}", flush=True)
                                 if char == "\n":
                                     if last_line.strip():
                                         # 阶段2：显示所有输出行（调试用）
                                         if phase == 2:
-                                            print(
-                                                f"[P2-DEBUG] {last_line.strip()}",
-                                                flush=True,
-                                            )
                                             # 解析节点测试结果（阶段2才显示节点状态）
                                             node_result = self._parse_node_result(
                                                 last_line
@@ -1061,11 +1049,6 @@ class SubsCheckTester:
                                                     flush=True,
                                                 )
                                         else:
-                                            # 阶段1：显示所有输出行（调试用）
-                                            print(
-                                                f"[P1-DEBUG] {last_line.strip()}",
-                                                flush=True,
-                                            )
                                             # 阶段1只显示进度，只在进度变化时显示
                                             if (
                                                 current_progress > 0
