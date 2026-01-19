@@ -42,14 +42,6 @@ v2raynode/
 │   ├── settings.py              # 主配置
 │   └── websites.py              # 网站配置
 │
-├── 📂 scripts/                  # 脚本工具
-│   ├── run.py                   # 快速启动
-│   ├── add_today_article_finder.py  # 文章查找
-│   ├── fix_collectors.py        # 收集器修复
-│   └── remove_type_annotations.py # 类型注解移除
-│
-├── 📂 tools/                    # 外部工具
-│
 ├── 📂 tests/                    # 测试文件
 │
 ├── 📂 docs/                     # 文档
@@ -131,13 +123,10 @@ v2raynode/
 
 ```bash
 # 本地运行
-python3 main.py --collect
-
-# 使用脚本
-python3 scripts/run.py
+python3 -m src.main --collect
 
 # 查看帮助
-python3 main.py --help
+python3 -m src.main --help
 ```
 
 ### 📊 监控
@@ -148,7 +137,6 @@ python3 main.py --help
 
 ### 🧹 清理
 
-- 临时脚本在 `scripts/` 目录
 - 文档统一在 `docs/` 目录
 - 自动清理7天前的日志
 

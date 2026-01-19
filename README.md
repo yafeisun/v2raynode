@@ -87,7 +87,6 @@ https://raw.githubusercontent.com/yafeisun/v2raynode/refs/heads/main/result/kari
 
 ### 🤖 自动化部署
 - **GitHub Actions**: 每日自动收集和更新
-- **定时任务**: 支持cron定时收集
 - **自动提交**: 自动提交测试结果到仓库
 - **状态监控**: 实时监控收集状态
 
@@ -153,18 +152,12 @@ https://raw.githubusercontent.com/yafeisun/v2raynode/refs/heads/main/result/kari
 ### 用户指南
 - [快速开始指南](docs/QUICK_START.md) - 详细的快速上手教程
 - [安装指南](docs/INSTALLATION.md) - 完整的安装步骤
-- [客户端配置](docs/CLIENT_SETUP.md) - 各类客户端配置教程
-- [故障排除](docs/PROXY_TROUBLESHOOTING.md) - 问题排查指南
 
 ### 开发者指南
 - [项目架构](docs/ARCHITECTURE.md) - 架构设计说明
-- [插件架构](docs/PLUGIN_ARCHITECTURE.md) - 插件化架构详解
-- [收集器开发](docs/developer-guide/COLLECTOR_DEVELOPMENT.md) - 如何添加新网站
-- [API参考](docs/developer-guide/API_REFERENCE.md) - API文档
+- [需求文档](REQUIREMENT.MD) - 项目需求说明
 
 ### 技术报告
-- [收集器映射](docs/COLLECTORS_MAPPING.md) - 所有收集器的详细映射
-- [测速对比分析](docs/reports/测速对比分析报告.md) - 测试结果分析
 - [更新日志](CHANGELOG.md) - 版本更新记录
 
 ---
