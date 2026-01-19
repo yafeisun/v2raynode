@@ -622,6 +622,10 @@ class SubsCheckTester:
 
             self.logger.info(f"执行命令: {' '.join(cmd)}")
 
+            # 设置环境变量确保无缓冲输出
+            env = os.environ.copy()
+            env['PYTHONUNBUFFERED'] = '1'
+
             self.process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -629,6 +633,7 @@ class SubsCheckTester:
                 cwd=self.project_root,
                 universal_newlines=False,
                 bufsize=0,
+                env=env,
             )
 
             # 实时输出日志
@@ -706,6 +711,10 @@ class SubsCheckTester:
             print(f"执行命令: {' '.join(cmd)}", flush=True)
             self.logger.info(f"执行命令: {' '.join(cmd)}")
 
+            # 设置环境变量确保无缓冲输出
+            env = os.environ.copy()
+            env['PYTHONUNBUFFERED'] = '1'
+
             self.process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -713,6 +722,7 @@ class SubsCheckTester:
                 cwd=self.project_root,
                 universal_newlines=False,
                 bufsize=0,
+                env=env,
             )
 
             # 实时输出日志
@@ -734,6 +744,10 @@ class SubsCheckTester:
             last_progress_displayed = -1.0  # 记录上一次显示的进度，避免重复打印
             node_test_times = {}  # 记录每个节点的开始测试时间 {node_index: start_time}
             last_tested_index = -1  # 上一个测试的节点索引
+
+            # 添加调试信息
+            print(f"[DEBUG] 阶段{phase}监控开始，超时={timeout}秒，节点数={node_count}", flush=True)
+            self.logger.info(f"阶段{phase}监控开始，超时={timeout}秒，节点数={node_count}")
 
             while True:
                 # 检查总超时
@@ -947,15 +961,27 @@ class SubsCheckTester:
                     break
 
                 # 使用select检查是否有可读数据
-                import select
-
-                try:
-                    byte = None
-                    char = ""  # 初始化char变量
-                    if self.process and self.process.stdout:
-                        ready, _, _ = select.select([self.process.stdout], [], [], 0.5)
-                        if ready:
-                            byte = self.process.stdout.read(1)
+                                    import select
+                
+                                    try:
+                                        byte = None
+                                        char = ""  # 初始化char变量
+                                        if self.process and self.process.stdout:
+                                            ready, _, _ = select.select([self.process.stdout], [], [], 0.5)
+                                            if ready:
+                                                # 读取数据
+                                                byte = self.process.stdout.read(1)
+                                                if byte:
+                                                    last_output_time = time.time()
+                                                    char = (
+                                                        byte.decode("utf-8", errors="ignore")
+                                                        if byte
+                                                        else ""
+                                                    )
+                
+                                                    # 添加调试输出：每100个字符显示一次
+                                                    if line_count % 100 == 0:
+                                                        print(f"[DEBUG] 已读取{line_count}行，当前字符: {repr(char[:50])}", flush=True)                            byte = self.process.stdout.read(1)
                             if byte:
                                 last_output_time = time.time()
                                 char = (
@@ -1809,15 +1835,7 @@ def main():
     print(f"系统CPU核心数: {cpu_count}, 动态设置并发数: {concurrent}", flush=True)
     logger.info(f"系统CPU核心数: {cpu_count}, 动态设置并发数: {concurrent}")
 
-    # 创建配置
-    print(f"创建测试配置...", flush=True)
-    if not tester.create_config(subscription_file, concurrent):
-        print("✗ 创建配置文件失败", flush=True)
-        logger.error("创建配置文件失败")
-        sys.exit(1)
-    print(f"✓ 测试配置已创建", flush=True)
-
-    # 运行测试
+    # 运行测试（配置将在run_phase1和run_phase2中创建）
     print(f"\n开始测试...", flush=True)
     success, message = tester.run_test(node_count=len(nodes))
 

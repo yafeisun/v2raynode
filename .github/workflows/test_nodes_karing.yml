@@ -1,10 +1,6 @@
 name: Test Nodes with Karing
 
 on:
-  schedule:
-    # 每6小时运行一次测速 (北京时间 0:00, 6:00, 12:00, 18:00)
-    - cron: '0 */6 * * *'
-
   workflow_dispatch:  # 允许手动触发
     inputs:
       trigger_collection:
@@ -23,10 +19,9 @@ on:
         default: '0'
         type: string
 
-  workflow_run:
-    workflows: ["Update Free Nodes"]
-    types:
-      - completed
+  push:
+    paths:
+      - 'result/nodetotal.txt'
     branches: [main]
 
 jobs:
@@ -36,7 +31,7 @@ jobs:
     permissions:
       contents: write
 
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
 
     steps:
     - name: Checkout repository
@@ -315,25 +310,36 @@ jobs:
       run: |
         echo "检查文件状态..."
 
-        # 检查文件是否存在
-        if [ -f result/karing.txt ]; then
-          echo "result/karing.txt 存在"
+        # 检查文件是否存在且有效
+        if [ -f result/karing.txt ] && [ -s result/karing.txt ]; then
+          echo "result/karing.txt 存在且不为空"
           node_count=$(wc -l < result/karing.txt)
           echo "有效节点数: $node_count"
           echo "文件内容预览:"
           head -5 result/karing.txt || echo "无法预览"
+          file_valid=true
         else
-          echo "result/karing.txt 不存在"
+          echo "⚠️ result/karing.txt 不存在或为空"
+          file_valid=false
           node_count=0
         fi
 
         echo ""
         echo "Git 状态:"
-        git status
+        git status --short
 
         echo ""
         echo "检查文件变更..."
-        if git diff --quiet HEAD -- result/karing.txt; then
+
+        # 如果文件无效，直接标记无变更
+        if [ "$file_valid" = false ]; then
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+          echo "❌ 测试结果文件无效，跳过提交"
+          exit 0
+        fi
+
+        # 检查是否有变更（包括新文件）
+        if git diff --quiet HEAD -- result/karing.txt 2>/dev/null; then
           echo "has_changes=false" >> $GITHUB_OUTPUT
           echo "没有检测到节点更新"
         else
@@ -346,14 +352,23 @@ jobs:
     - name: Commit and push changes
       if: steps.changes.outputs.has_changes == 'true'
       run: |
+        echo "开始提交变更..."
+
+        # 配置 git
         git config --global user.email "action@github.com"
         git config --global user.name "GitHub Action"
 
         # 先拉取最新代码避免冲突
+        echo "拉取最新代码..."
         git pull origin main --rebase || true
 
         # 添加文件到暂存区
+        echo "添加文件到暂存区..."
         git add result/karing.txt
+
+        # 检查暂存区状态
+        echo "暂存区状态:"
+        git status --short
 
         # 获取节点数量用于提交信息
         if [ -f result/karing.txt ]; then
@@ -371,12 +386,24 @@ jobs:
         # 生成详细的提交信息
         if [ ${total_count} -gt 0 ]; then
           pass_rate=$(echo "scale=1; ${valid_count} * 100 / ${total_count}" | bc -l)
-          git commit -m "Karing延迟测试 - 节点总数:${total_count} 有效节点:${valid_count} 通过率:${pass_rate}%"
+          commit_msg="Karing延迟测试 - 节点总数:${total_count} 有效节点:${valid_count} 通过率:${pass_rate}%"
         else
-          git commit -m "Karing延迟测试 - 节点总数:${total_count} 有效节点:${valid_count} 通过率:N/A"
+          commit_msg="Karing延迟测试 - 节点总数:${total_count} 有效节点:${valid_count} 通过率:N/A"
+        fi
+
+        echo "提交信息: $commit_msg"
+
+        # 提交变更
+        git commit -m "$commit_msg"
+
+        # 检查提交是否成功
+        if [ $? -ne 0 ]; then
+          echo "❌ 提交失败"
+          exit 1
         fi
 
         # 尝试推送，如果有冲突则重试
+        echo "开始推送到远程仓库..."
         for i in {1..3}; do
           if git push origin main; then
             echo "✅ 成功推送到远程仓库"
@@ -399,15 +426,16 @@ jobs:
         echo "- **更新时间**: $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
 
         # 判断触发来源
-        if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ github.event.inputs.trigger_collection }}" == "true" ]; then
-          echo "- **触发方式**: 📦 收集工作流触发" >> $GITHUB_STEP_SUMMARY
-          echo "- **收集提交**: ${{ github.event.inputs.collection_commit }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **总节点数**: ${{ github.event.inputs.total_nodes }}" >> $GITHUB_STEP_SUMMARY
-        elif [ "${{ github.event_name }}" == "workflow_run" ]; then
-          echo "- **触发方式**: 🔄 收集工作流完成触发" >> $GITHUB_STEP_SUMMARY
-          echo "- **收集工作流**: ${{ github.event.workflow_run.id }}" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "- **触发方式**: ⏰ 定时触发" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          echo "- **触发方式**: ✋ 手动触发" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.trigger_collection }}" == "true" ]; then
+            echo "- **收集提交**: ${{ github.event.inputs.collection_commit }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **总节点数**: ${{ github.event.inputs.total_nodes }}" >> $GITHUB_STEP_SUMMARY
+          fi
+        elif [ "${{ github.event_name }}" == "push" ]; then
+          echo "- **触发方式**: 📝 文件变更触发" >> $GITHUB_STEP_SUMMARY
+          echo "- **触发提交**: ${{ github.event.after }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **变更文件**: result/nodetotal.txt" >> $GITHUB_STEP_SUMMARY
         fi
 
         if [ "${{ steps.changes.outputs.has_changes }}" == "true" ]; then
