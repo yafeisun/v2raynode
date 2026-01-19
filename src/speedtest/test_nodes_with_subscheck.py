@@ -1753,6 +1753,16 @@ def main():
     print(f"✅ 读取到 {len(nodes)} 个节点 (耗时: {read_elapsed:.2f}秒)", flush=True)
     logger.info(f"读取到 {len(nodes)} 个节点")
 
+    # 限制节点数量，避免测试时间过长
+    MAX_TEST_NODES = 500  # GitHub Actions 4核心机器建议最多500个节点
+    if len(nodes) > MAX_TEST_NODES:
+        print(
+            f"⚠️  节点数量({len(nodes)})超过限制({MAX_TEST_NODES})，只测试前 {MAX_TEST_NODES} 个节点",
+            flush=True,
+        )
+        logger.warning(f"节点数量超过限制，截断到 {MAX_TEST_NODES} 个")
+        nodes = nodes[:MAX_TEST_NODES]
+
     # 转换为Clash格式
     print(f"\n转换为Clash订阅格式...", flush=True)
     logger.info("转换为Clash订阅格式...")
