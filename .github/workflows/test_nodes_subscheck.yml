@@ -1,4 +1,4 @@
-name: Test Nodes
+name: Test Nodes with Subscheck
 
 on:
   schedule:

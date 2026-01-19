@@ -1,4 +1,4 @@
-name: Update Free Nodes
+name: Collect Free Nodes
 
 on:
   schedule:
