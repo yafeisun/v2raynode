@@ -445,18 +445,33 @@ class BaseCollector(ABC):
         dated_links.sort(key=lambda x: (not x["is_today"], x["days_diff"]))
 
         # 如果有今天的日期，返回第一个
+        today_article = None
+        latest_article = None
+
         for item in dated_links:
-            if item["is_today"]:
-                article_url = self._process_url(item["url"])
-                self.logger.info(f"通过日期匹配找到今天的文章: {article_url}")
-                return article_url
+            if item["is_today"] and today_article is None:
+                today_article = item
+            if latest_article is None:
+                latest_article = item
+
+        if today_article:
+            article_url = self._process_url(today_article["url"])
+            self.logger.info(f"✅ 找到今天的文章: {article_url}")
+            return article_url
 
         # 如果没有今天的日期，返回最近的
-        if dated_links:
-            item = dated_links[0]
-            article_url = self._process_url(item["url"])
+        if latest_article:
+            article_url = self._process_url(latest_article["url"])
+            days_ago = (target_date.date() - latest_article["date"].date()).days
+            if days_ago == 0:
+                date_hint = "今天"
+            elif days_ago == 1:
+                date_hint = "昨天"
+            else:
+                date_hint = f"{days_ago}天前"
+
             self.logger.info(
-                f"未找到今天的文章，使用最近的: {article_url} ({item['date'].strftime('%Y-%m-%d')})"
+                f"⚠️ 未找到今天的文章，使用最新的 ({date_hint} - {latest_article['date'].strftime('%Y-%m-%d')}): {article_url}"
             )
             return article_url
 
