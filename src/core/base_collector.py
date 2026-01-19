@@ -279,7 +279,7 @@ class BaseCollector(ABC):
             self.last_article_url = article_url
 
             # 访问文章页面并提取订阅链接
-            # 对于 BROWSER_ONLY_SITES，使用浏览器访问文章页面
+            # 对于 BROWSER_ONLY_SITES，先尝试代理，失败后再使用浏览器
             from config.websites import BROWSER_ONLY_SITES
 
             site_key = self.site_config.get(
@@ -287,28 +287,43 @@ class BaseCollector(ABC):
             )
 
             if site_key in BROWSER_ONLY_SITES:
-                self.logger.info(f"使用浏览器访问文章页面: {article_url}")
-                # 临时禁用代理
-                original_proxies = self.session.proxies
-                self.session.proxies = {"http": None, "https": None}
-
-                with sync_playwright() as p:
-                    browser = p.chromium.launch(
-                        headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"]
+                # 先尝试代理访问
+                try:
+                    self.logger.info(f"尝试代理访问文章页面: {article_url}")
+                    response = self._make_request(article_url)
+                    if response and len(response.text) > 100:
+                        content = response.text
+                        self.logger.info(
+                            f"代理访问成功，获取到 {len(content)} 字节内容"
+                        )
+                    else:
+                        raise Exception("代理返回内容过短或为空")
+                except Exception as proxy_error:
+                    self.logger.warning(
+                        f"代理访问失败: {str(proxy_error)}，尝试浏览器访问"
                     )
-                    context = browser.new_context(
-                        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                        viewport={"width": 1920, "height": 1080},
-                        locale="zh-CN",
-                    )
-                    page = context.new_page()
-                    # 增加超时时间到 60 秒
-                    page.goto(article_url, wait_until="networkidle", timeout=60000)
-                    content = page.content()
-                    browser.close()
+                    # 临时禁用代理
+                    original_proxies = self.session.proxies
+                    self.session.proxies = {"http": None, "https": None}
 
-                # 恢复代理设置
-                self.session.proxies = original_proxies
+                    with sync_playwright() as p:
+                        browser = p.chromium.launch(
+                            headless=True,
+                            args=["--no-sandbox", "--disable-dev-shm-usage"],
+                        )
+                        context = browser.new_context(
+                            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                            viewport={"width": 1920, "height": 1080},
+                            locale="zh-CN",
+                        )
+                        page = context.new_page()
+                        # 增加超时时间到 90 秒
+                        page.goto(article_url, wait_until="networkidle", timeout=90000)
+                        content = page.content()
+                        browser.close()
+
+                    # 恢复代理设置
+                    self.session.proxies = original_proxies
             else:
                 response = self._make_request(article_url)
                 content = response.text
@@ -371,15 +386,22 @@ class BaseCollector(ABC):
             target_date = datetime.now()
 
         # 生成多种日期格式用于匹配
-        date_str = target_date.strftime("%Y-%m-%d")
-        date_str_alt = target_date.strftime("%Y/%m/%d")
-        date_str_month_day_cn = f"{target_date.month}月{target_date.day}日"
-        date_str_month_day_cn_alt = f"{target_date.month:02d}月{target_date.day:02d}日"
-        date_str_month_day = target_date.strftime("%m-%d")
-        date_str_year_month = target_date.strftime("%Y-%m")
-        date_str_year_month_cn = (
-            f"{target_date.year}年{target_date.month:02d}月{target_date.day:02d}日"
+        date_str = target_date.strftime("%Y-%m-%d")  # 2026-01-19
+        date_str_no_padding = (
+            f"{target_date.year}-{target_date.month}-{target_date.day}"  # 2026-1-19
         )
+        date_str_alt = target_date.strftime("%Y/%m/%d")  # 2026/01/19
+        date_str_alt_no_padding = (
+            f"{target_date.year}/{target_date.month}/{target_date.day}"  # 2026/1/19
+        )
+        date_str_month_day_cn = f"{target_date.month}月{target_date.day}日"  # 1月19日
+        date_str_month_day_cn_alt = (
+            f"{target_date.month:02d}月{target_date.day:02d}日"  # 01月19日
+        )
+        date_str_month_day = target_date.strftime("%m-%d")  # 01-19
+        date_str_month_day_no_padding = f"{target_date.month}-{target_date.day}"  # 1-19
+        date_str_year_month = target_date.strftime("%Y-%m")  # 2026-01
+        date_str_year_month_cn = f"{target_date.year}年{target_date.month:02d}月{target_date.day:02d}日"  # 2026年01月19日
 
         # 优先通过日期匹配查找文章（最准确的方法）
         all_links = soup.find_all("a", href=True)
@@ -390,12 +412,15 @@ class BaseCollector(ABC):
             # 检查链接文本或URL中是否包含今天的日期
             if href and (
                 date_str in href
+                or date_str_no_padding in href  # 2026-1-19 格式
                 or date_str_alt in href
+                or date_str_alt_no_padding in href  # 2026/1/19 格式
                 or date_str_month_day_cn in text
                 or date_str_month_day_cn_alt in text
                 or date_str_year_month_cn in text
                 or date_str in text
                 or date_str_month_day in text
+                or date_str_month_day_no_padding in text  # 1-19 格式
                 or date_str_year_month in href
             ):
                 # 排除导航链接（只选择文章链接）
