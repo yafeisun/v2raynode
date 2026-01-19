@@ -21,34 +21,39 @@ class IntelligentTimeoutManager:
         if avg_latency is None:
             avg_latency = 200.0  # 默认200ms延迟
 
-        # 基础超时，并根据节点数量调整
-        base_timeout = 3000 if phase == 1 else 6000
-
-        # 根据节点数量增加超时时间
-        if node_count > 1000:
-            base_timeout *= 2  # 大量节点需要更长时间
-        elif node_count > 500:
-            base_timeout *= 1.5
-
         # 根据GitHub开源项目最佳实践调整
         if phase == 1:
             # 阶段1：连通性测试，较短超时
             if avg_latency < 100:
-                return 2000  # 超低延迟，更快超时
+                timeout = 2000  # 超低延迟，更快超时
             elif avg_latency < 200:
-                return 3000  # 低延迟，标准超时
+                timeout = 3000  # 低延迟，标准超时
             else:
-                return 4000  # 中高延迟，稍长超时
+                timeout = 4000  # 中高延迟，稍长超时
+
+            # 根据节点数量调整超时
+            if node_count > 1000:
+                timeout = int(min(timeout * 2, 6000))  # 大量节点最多6秒
+            elif node_count > 500:
+                timeout = int(min(timeout * 1.5, 5000))
+
+            return timeout
         else:
             # 阶段2：媒体检测，较长超时
             if avg_latency < 500:
-                return 6000  # 快速响应
+                timeout = 6000  # 快速响应
             elif avg_latency < 1000:
-                return 8000  # 中等响应
+                timeout = 8000  # 中等响应
             elif avg_latency < 2000:
-                return 12000  # 慢速响应
+                timeout = 12000  # 慢速响应
             else:
-                return 15000  # 超慢响应
+                timeout = 15000  # 超慢响应
+
+            # 根据节点数量调整超时
+            if node_count > 500:
+                timeout = int(min(timeout * 1.5, 20000))
+
+            return timeout
 
     def calculate_optimal_concurrency(
         self, node_count: int, phase: int, avg_latency: float | None = None
