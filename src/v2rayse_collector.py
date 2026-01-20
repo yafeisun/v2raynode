@@ -205,260 +205,53 @@ class V2RaySECollector:
                 except Exception as e:
                     self.logger.error(f"选择节点时出错: {e}")
 
-                # 在勾选所有复选框后，尝试查找全局的复制/导出按钮
+                # 在勾选所有复选框后，点击节点操作按钮
                 try:
-                    # 查找全局复制/导出按钮（通常在页面顶部或表格上方）
-                    global_copy_selectors = [
-                        'button:has-text("复制选中")',
-                        'button:has-text("复制")',
-                        'button:has-text("导出选中")',
-                        'button:has-text("导出")',
-                        'button:has-text("复制订阅")',
-                        'a:has-text("复制选中")',
-                        'a:has-text("复制")',
-                        'a:has-text("导出")',
-                        '[data-action="copy-selected"]',
-                        '[data-action="export-selected"]',
-                        ".copy-selected-btn",
-                        ".export-selected-btn",
-                    ]
-
-                    global_copy_found = False
-                    for selector in global_copy_selectors:
-                        try:
-                            copy_btn = page.locator(selector).first
-                            if await copy_btn.is_visible():
-                                await copy_btn.click()
-                                self.logger.info(f"点击全局复制按钮: {selector}")
-                                global_copy_found = True
-                                await page.wait_for_timeout(2000)  # 等待复制完成
-                                break
-                        except Exception as e:
-                            self.logger.debug(f"尝试 {selector} 失败: {e}")
-                            continue
-
-                    if global_copy_found:
-                        self.logger.info("已点击全局复制按钮")
-                        # 保存点击后的截图
-                        await page.screenshot(path=str(self.debug_dir / "debug_after_copy.png"))
-                        self.logger.info("保存复制后页面截图: debug_after_copy.png")
-                    else:
-                        self.logger.info("未找到全局复制按钮，继续查找操作按钮")
-
-                except Exception as e:
-                    self.logger.warning(f"查找全局复制按钮时出错: {e}")
-
-                # 查找节点操作按钮并悬浮触发菜单
-                try:
-                    # 查找操作按钮（可能是"操作"列或特定的操作按钮）
-                    operation_selectors = [
-                        'button:has-text("操作")',
-                        ".operation-btn",
-                        "#operation-btn",
-                        "[data-operation]",
-                    ]
-
-                    operation_found = False
-                    for selector in operation_selectors:
-                        try:
-                            operation_btn = page.locator(selector).first
-                            if await operation_btn.is_visible():
-                                # 查找转换选项 - 尝试多种选择器
-                                convert_selectors = [
-                                    'button:has-text("转换")',
-                                    'a:has-text("转换")',
-                                    '[data-action="convert"]',
-                                    ".convert-option",
-                                    'button:has-text("V2RAY")',
-                                    'button:has-text("转V2RAY")',
-                                    'button:has-text("导出")',
-                                    'a:has-text("导出")',
-                                    '[data-format="v2ray"]',
-                                    '.menu-item:has-text("转换")',
-                                    '.dropdown-item:has-text("转换")',
-                                    'button:has-text("复制")',
-                                    'a:has-text("复制")',
-                                    ".copy-option",
-                                    '[data-action="copy"]',
-                                ]
-
-                                # 先悬浮到操作按钮
-                                await operation_btn.hover()
-                                self.logger.info(f"悬浮到操作按钮: {selector}")
-                                await page.wait_for_timeout(1000)  # 等待菜单显示
-
-                                # 如果悬浮后没有找到转换选项，尝试点击操作按钮
-                                convert_found = False
-                                for convert_selector in convert_selectors[
-                                    :3
-                                ]:  # 先检查前3个选择器
-                                    try:
-                                        convert_btn = page.locator(
-                                            convert_selector
-                                        ).first
-                                        if await convert_btn.is_visible():
-                                            await convert_btn.click()
-                                            self.logger.info(
-                                                f"点击转换选项: {convert_selector}"
-                                            )
-                                            convert_found = True
-                                            operation_found = True
-                                            break
-                                    except Exception as e:
-                                        self.logger.debug(
-                                            f"尝试 {convert_selector} 失败: {e}"
-                                        )
-                                        continue
-
-                                if not convert_found:
-                                    # 尝试点击操作按钮
-                                    try:
-                                        await operation_btn.click()
-                                        self.logger.info("点击操作按钮")
-                                        await page.wait_for_timeout(
-                                            1000
-                                        )  # 等待菜单显示
-
-                                        # 保存点击后的截图
-                                        await page.screenshot(path=str(self.debug_dir / "debug_click.png"))
-                                        self.logger.info(
-                                            "保存点击后页面截图: debug_click.png"
-                                        )
-
-                                        # 查找选中操作菜单项
-                                        select_menu_selectors = [
-                                            'button:has-text("选中")',
-                                            'a:has-text("选中")',
-                                            '[data-action="select"]',
-                                            ".select-menu",
-                                            ".select-option",
-                                        ]
-
-                                        select_menu_found = False
-                                        for select_selector in select_menu_selectors:
-                                            try:
-                                                select_menu = page.locator(
-                                                    select_selector
-                                                ).first
-                                                if await select_menu.is_visible():
-                                                    # 悬浮到选中菜单
-                                                    await select_menu.hover()
-                                                    self.logger.info(
-                                                        f"悬浮到选中菜单: {select_selector}"
-                                                    )
-                                                    await page.wait_for_timeout(
-                                                        1000
-                                                    )  # 等待子菜单显示
-
-                                                    # 保存选中菜单悬浮后的截图
-                                                    await page.screenshot(
-                                                        path=str(self.debug_dir / "debug_select_hover.png")
-                                                    )
-                                                    self.logger.info(
-                                                        "保存选中菜单悬浮后截图: debug_select_hover.png"
-                                                    )
-
-                                                    select_menu_found = True
-                                                    break
-                                            except Exception as e:
-                                                self.logger.debug(
-                                                    f"查找选中菜单 {select_selector} 失败: {e}"
-                                                )
-                                                continue
-
-                                        if not select_menu_found:
-                                            self.logger.warning("未找到选中菜单")
-
-                                        # 再次查找转换选项
-                                        for convert_selector in convert_selectors:
-                                            try:
-                                                convert_btn = page.locator(
-                                                    convert_selector
-                                                ).first
-                                                if await convert_btn.is_visible():
-                                                    await convert_btn.click()
-                                                    self.logger.info(
-                                                        f"点击转换选项: {convert_selector}"
-                                                    )
-                                                    operation_found = True
-                                                    break
-                                            except Exception as e:
-                                                self.logger.debug(
-                                                    f"尝试 {convert_selector} 失败: {e}"
-                                                )
-                                                continue
-
-                                    except Exception as e:
-                                        self.logger.warning(f"点击操作按钮失败: {e}")
-
-                                # 保存悬浮后的截图（无论是否点击）
-                                await page.screenshot(path=str(self.debug_dir / "debug_hover.png"))
-                                self.logger.info("保存悬浮后页面截图: debug_hover.png")
-
-                                # 也查找所有可见的按钮，看看有哪些
-                                all_visible_buttons = page.locator(
-                                    "button:visible, a:visible"
-                                )
-                                button_count = await all_visible_buttons.count()
-                                self.logger.info(
-                                    f"找到 {button_count} 个可见的按钮/链接"
-                                )
-
-                                for i in range(button_count):  # 检查所有按钮
-                                    try:
-                                        btn_text = await all_visible_buttons.nth(
-                                            i
-                                        ).text_content()
-                                        if btn_text:
-                                            self.logger.info(
-                                                f"按钮 {i}: '{btn_text.strip()}'"
-                                            )
-                                            if (
-                                                "转换" in btn_text
-                                                or "V2RAY" in btn_text
-                                                or "导出" in btn_text
-                                                or "复制" in btn_text
-                                                or "选中" in btn_text
-                                            ):
-                                                self.logger.info(
-                                                    f"找到可能的操作按钮: '{btn_text}'"
-                                                )
-                                    except Exception as e:
-                                        self.logger.debug(f"获取按钮 {i} 文本失败: {e}")
-                                        continue
-
-                                for convert_selector in convert_selectors:
-                                    try:
-                                        convert_btn = page.locator(
-                                            convert_selector
-                                        ).first
-                                        if await convert_btn.is_visible():
-                                            await convert_btn.click()
-                                            self.logger.info(
-                                                f"点击转换选项: {convert_selector}"
-                                            )
-                                            operation_found = True
-                                            break
-                                    except Exception as e:
-                                        self.logger.debug(
-                                            f"尝试 {convert_selector} 失败: {e}"
-                                        )
-                                        continue
-
-                                if operation_found:
+                    # 点击"节点操作"按钮
+                    node_operation_btn = page.locator('button:has-text("节点操作")').first
+                    if await node_operation_btn.is_visible():
+                        await node_operation_btn.click()
+                        self.logger.info("点击节点操作按钮")
+                        await page.wait_for_timeout(1000)  # 等待菜单显示
+                        
+                        # 查找并点击复制按钮
+                        copy_selectors = [
+                            'button:has-text("复制")',
+                            'button:has-text("复制选中")',
+                            'a:has-text("复制")',
+                            'a:has-text("复制选中")',
+                            '[data-action="copy"]',
+                            '[data-action="copy-selected"]',
+                        ]
+                        
+                        copy_found = False
+                        for selector in copy_selectors:
+                            try:
+                                copy_btn = page.locator(selector).first
+                                if await copy_btn.is_visible():
+                                    await copy_btn.click()
+                                    self.logger.info(f"点击复制按钮: {selector}")
+                                    copy_found = True
+                                    await page.wait_for_timeout(2000)  # 等待复制完成
                                     break
-
-                        except Exception as e:
-                            self.logger.debug(f"尝试 {selector} 失败: {e}")
-                            continue
-
-                    if not operation_found:
-                        self.logger.warning("未找到节点操作按钮或转换选项")
+                            except Exception as e:
+                                self.logger.debug(f"尝试 {selector} 失败: {e}")
+                                continue
+                        
+                        if copy_found:
+                            self.logger.info("已成功点击复制按钮")
+                            # 保存点击后的截图
+                            await page.screenshot(path=str(self.debug_dir / "debug_after_copy.png"))
+                            self.logger.info("保存复制后页面截图: debug_after_copy.png")
+                        else:
+                            self.logger.warning("未找到复制按钮")
+                    else:
+                        self.logger.warning("未找到节点操作按钮")
 
                 except Exception as e:
-                    self.logger.error(f"转换格式时出错: {e}")
+                    self.logger.warning(f"查找节点操作按钮时出错: {e}")
 
-                # 等待转换完成
+                # 等待复制完成
                 await page.wait_for_timeout(3000)
 
                 # 提取V2RAY节点数据
