@@ -212,16 +212,29 @@ class V2RaySECollector:
                     if await node_operation_btn.is_visible():
                         await node_operation_btn.click()
                         self.logger.info("点击节点操作按钮")
-                        await page.wait_for_timeout(1000)  # 等待菜单显示
+                        await page.wait_for_timeout(2000)  # 等待菜单显示
+                        
+                        # 保存点击后的截图
+                        await page.screenshot(path=str(self.debug_dir / "debug_after_click.png"))
+                        self.logger.info("保存点击后页面截图: debug_after_click.png")
+                        
+                        # 保存点击后的页面HTML
+                        page_html = await page.content()
+                        with open(self.debug_dir / "debug_after_click.html", "w", encoding="utf-8") as f:
+                            f.write(page_html)
+                        self.logger.info("保存点击后页面HTML: debug_after_click.html")
                         
                         # 查找并点击复制按钮
                         copy_selectors = [
                             'button:has-text("复制")',
                             'button:has-text("复制选中")',
+                            'button:has-text("复制订阅")',
                             'a:has-text("复制")',
                             'a:has-text("复制选中")',
                             '[data-action="copy"]',
                             '[data-action="copy-selected"]',
+                            'div:has-text("复制")',
+                            '.copy-btn',
                         ]
                         
                         copy_found = False
@@ -244,7 +257,7 @@ class V2RaySECollector:
                             await page.screenshot(path=str(self.debug_dir / "debug_after_copy.png"))
                             self.logger.info("保存复制后页面截图: debug_after_copy.png")
                         else:
-                            self.logger.warning("未找到复制按钮")
+                            self.logger.warning("未找到复制按钮，尝试从页面源码提取")
                     else:
                         self.logger.warning("未找到节点操作按钮")
 
