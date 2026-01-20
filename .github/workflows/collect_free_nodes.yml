@@ -183,6 +183,27 @@ jobs:
         
         echo "收集节点已提交并推送到仓库"
     
+    - name: Trigger Karing latency test
+      if: steps.collection_changes.outputs.has_nodetotal_changes == 'true'
+      run: |
+        echo "🚀 触发Karing延迟测试..."
+        
+        # 获取当前提交SHA
+        current_sha=$(git rev-parse HEAD)
+        total_count="${{ steps.collection_changes.outputs.total_node_count }}"
+        
+        echo "当前提交: $current_sha"
+        echo "总节点数: $total_count"
+        
+        # 使用gh CLI触发karing测速workflow
+        gh workflow run test_nodes_karing.yml \
+          --ref main \
+          -f trigger_collection=true \
+          -f collection_commit="$current_sha" \
+          -f total_nodes="$total_count"
+        
+        echo "✅ Karing延迟测试已触发"
+    
     - name: Create summary (collection)
       if: always()
       run: |
