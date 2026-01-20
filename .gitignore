@@ -70,3 +70,6 @@ result/output/
 
 # Raw HTML files (temporary)
 data/raw/
+
+# Debug files (temporary)
+data/debug/
