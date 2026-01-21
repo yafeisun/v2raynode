@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write  # 允许触发其他 workflow
     env:
       TZ: Asia/Shanghai  # 设置时区为北京时间，解决文章链接匹配问题
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
