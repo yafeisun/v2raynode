@@ -9,7 +9,7 @@ import base64
 from datetime import datetime
 from bs4 import BeautifulSoup
 from src.core.base_collector import BaseCollector
-from config.websites import UNIVERSAL_SELECTORS
+from src.config.websites import UNIVERSAL_SELECTORS
 
 
 class DatiyaCollector(BaseCollector):
@@ -143,8 +143,8 @@ class DatiyaCollector(BaseCollector):
                         node = self._convert_clash_proxy_to_node(proxy)
                         if node and len(node) >= 50:
                             nodes.append(node)
-                    except:
-                        pass
+                    except Exception as e:
+                        self.logger.debug(f"代理转换失败: {str(e)}")
 
             self.logger.info(f"从Datiya YAML解析获取到 {len(nodes)} 个节点")
 
@@ -174,8 +174,8 @@ class DatiyaCollector(BaseCollector):
                         node = self._convert_clash_proxy_to_node(proxy)
                         if node and len(node) >= 50:
                             nodes.append(node)
-                    except:
-                        pass
+                    except Exception as e:
+                        self.logger.debug(f"YAML fallback解析失败: {str(e)}")
 
                 self.logger.info(f"从YAML fallback解析获取到 {len(nodes)} 个节点")
 
@@ -188,7 +188,7 @@ class DatiyaCollector(BaseCollector):
         """从文章内容提取直接节点"""
         nodes = []
 
-        from config.websites import NODE_PATTERNS
+        from src.config.websites import NODE_PATTERNS
 
         for pattern in NODE_PATTERNS:
             try:

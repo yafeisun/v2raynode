@@ -10,7 +10,7 @@ import random
 from datetime import datetime
 from bs4 import BeautifulSoup
 from src.core.base_collector import BaseCollector
-from config.websites import (
+from src.config.websites import (
     SUBSCRIPTION_PATTERNS,
     SUBSCRIPTION_KEYWORDS,
     UNIVERSAL_SELECTORS,

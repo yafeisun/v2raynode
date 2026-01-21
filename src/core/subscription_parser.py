@@ -21,7 +21,16 @@ except ImportError:
     yaml = None
 
 from src.core.config_manager import get_config
+from src.core.protocol_converter import get_converter, extract_nodes_from_text
 from src.utils.logger import get_logger
+from src.core.exceptions import (
+    NetworkError,
+    RequestTimeoutError,
+    ConnectionError as V2RayConnectionError,
+    ProxyError,
+    SubscriptionParseError,
+    NodeParseError,
+)
 
 
 class SubscriptionParser:
@@ -34,6 +43,9 @@ class SubscriptionParser:
         # 配置参数
         self.timeout = self.config_manager.base.REQUEST_TIMEOUT
         self.min_node_length = self.config_manager.base.MIN_NODE_LENGTH
+
+        # 协议转换器
+        self.converter = get_converter(self.logger)
 
         # 节点协议模式
         self.node_patterns = [
@@ -162,6 +174,21 @@ class SubscriptionParser:
             response.raise_for_status()
             return response.text.strip()
 
+        except requests.exceptions.Timeout as e:
+            self.logger.error(f"获取订阅内容超时 {url}: {str(e)}")
+            return None
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"获取订阅内容连接错误 {url}: {str(e)}")
+            return None
+        except requests.exceptions.ProxyError as e:
+            self.logger.error(f"获取订阅内容代理错误 {url}: {str(e)}")
+            return None
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"获取订阅内容HTTP错误 {url}: {e.response.status_code}")
+            return None
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"获取订阅内容网络请求错误 {url}: {str(e)}")
+            return None
         except Exception as e:
             self.logger.error(f"获取订阅内容失败 {url}: {str(e)}")
             return None
@@ -351,253 +378,13 @@ class SubscriptionParser:
 
         for proxy in proxies:
             try:
-                node = self._convert_single_clash_proxy(proxy)
+                node = self.converter.convert(proxy)
                 if node and len(node) >= self.min_node_length:
                     nodes.append(node)
             except Exception as e:
                 self.logger.debug(f"Clash代理转换失败: {str(e)}")
 
         return nodes
-
-    def _convert_single_clash_proxy(self, proxy: Dict[str, Any]) -> Optional[str]:
-        """转换单个Clash代理配置为URI"""
-        proxy_type = proxy.get("type", "").lower()
-
-        if proxy_type == "vmess":
-            return self._convert_vmess_proxy(proxy)
-        elif proxy_type == "vless":
-            return self._convert_vless_proxy(proxy)
-        elif proxy_type == "trojan":
-            return self._convert_trojan_proxy(proxy)
-        elif proxy_type == "ss":
-            return self._convert_ss_proxy(proxy)
-        elif proxy_type in ["hysteria", "hysteria2"]:
-            return self._convert_hysteria_proxy(proxy)
-        elif proxy_type == "socks5":
-            return self._convert_socks5_proxy(proxy)
-        else:
-            self.logger.debug(f"不支持的代理类型: {proxy_type}")
-            return None
-
-    def _convert_vmess_proxy(self, proxy: Dict[str, Any]) -> Optional[str]:
-        """转换VMess代理为URI"""
-        try:
-            import json
-
-            vmess_config = {
-                "v": "2",
-                "ps": proxy.get("name", ""),
-                "add": proxy.get("server", ""),
-                "port": str(proxy.get("port", "")),
-                "id": proxy.get("uuid", proxy.get("id", "")),
-                "aid": proxy.get("alterId", 0),
-                "net": proxy.get("network", "tcp"),
-                "type": proxy.get("cipher", "auto"),
-                "host": proxy.get("servername", ""),
-                "path": proxy.get("path", ""),
-                "tls": "tls" if proxy.get("tls") else "",
-            }
-
-            config_json = json.dumps(vmess_config, separators=(",", ":"))
-            config_b64 = base64.b64encode(config_json.encode()).decode()
-
-            uri = f"vmess://{config_b64}"
-            name = proxy.get("name", "")
-            if name:
-                uri += f"#{name}"
-
-            return uri
-
-        except Exception as e:
-            self.logger.debug(f"VMess转换失败: {str(e)}")
-            return None
-
-    def _convert_vless_proxy(self, proxy: Dict[str, Any]) -> Optional[str]:
-        """转换VLESS代理为URI"""
-        try:
-            server = proxy.get("server", "")
-            port = proxy.get("port", "")
-            uuid = proxy.get("uuid", "")
-            name = proxy.get("name", "")
-
-            if not all([server, port, uuid]):
-                return None
-
-            uri = f"vless://{uuid}@{server}:{port}"
-
-            params = []
-            network = proxy.get("network", "tcp")
-            if network:
-                params.append(f"type={network}")
-
-            security = proxy.get("security", "")
-            if security:
-                params.append(f"security={security}")
-
-            encryption = proxy.get("encryption", "none")
-            if encryption and encryption != "none":
-                params.append(f"encryption={encryption}")
-
-            if proxy.get("tls"):
-                params.append("security=tls")
-
-            servername = proxy.get("servername", proxy.get("sni", ""))
-            if servername:
-                params.append(f"sni={servername}")
-
-            fp = proxy.get("client-fingerprint", proxy.get("fp", ""))
-            if fp:
-                params.append(f"fp={fp}")
-
-            # WebSocket参数
-            if network in ["ws", "grpc"]:
-                ws_opts = proxy.get("ws-opts", {})
-                if ws_opts:
-                    host = ws_opts.get("headers", {}).get("Host", "")
-                    if host:
-                        params.append(f"host={host}")
-
-                    path = ws_opts.get("path", "")
-                    if path:
-                        params.append(f"path={path}")
-
-            if params:
-                uri += "?" + "&".join(params)
-
-            if name:
-                uri += f"#{name}"
-
-            return uri
-
-        except Exception as e:
-            self.logger.debug(f"VLESS转换失败: {str(e)}")
-            return None
-
-    def _convert_trojan_proxy(self, proxy: Dict[str, Any]) -> Optional[str]:
-        """转换Trojan代理为URI"""
-        try:
-            server = proxy.get("server", "")
-            port = proxy.get("port", "")
-            password = proxy.get("password", "")
-            name = proxy.get("name", "")
-
-            if not all([server, port, password]):
-                return None
-
-            uri = f"trojan://{password}@{server}:{port}"
-
-            params = []
-            sni = proxy.get("sni", proxy.get("servername", ""))
-            if sni:
-                params.append(f"sni={sni}")
-
-            if proxy.get("skip-cert-verify"):
-                params.append("allowInsecure=1")
-
-            if params:
-                uri += "?" + "&".join(params)
-
-            if name:
-                uri += f"#{name}"
-
-            return uri
-
-        except Exception as e:
-            self.logger.debug(f"Trojan转换失败: {str(e)}")
-            return None
-
-    def _convert_ss_proxy(self, proxy: Dict[str, Any]) -> Optional[str]:
-        """转换Shadowsocks代理为URI"""
-        try:
-            server = proxy.get("server", "")
-            port = proxy.get("port", "")
-            method = proxy.get("cipher", "aes-256-gcm")
-            password = proxy.get("password", "")
-            name = proxy.get("name", "")
-
-            if not all([server, port, method, password]):
-                return None
-
-            # Base64编码 method:password
-            auth = f"{method}:{password}"
-            auth_b64 = base64.b64encode(auth.encode()).decode()
-
-            uri = f"ss://{auth_b64}@{server}:{port}"
-
-            if name:
-                uri += f"#{name}"
-
-            return uri
-
-        except Exception as e:
-            self.logger.debug(f"Shadowsocks转换失败: {str(e)}")
-            return None
-
-    def _convert_hysteria_proxy(self, proxy: Dict[str, Any]) -> Optional[str]:
-        """转换Hysteria代理为URI"""
-        try:
-            server = proxy.get("server", "")
-            port = proxy.get("port", "")
-            protocol = proxy.get("protocol", "udp")
-            name = proxy.get("name", "")
-
-            if not all([server, port]):
-                return None
-
-            auth = proxy.get("auth", proxy.get("password", ""))
-            obfs = proxy.get("obfs", "")
-            obfs_password = proxy.get("obfs-password", "")
-
-            uri = f"hysteria://{server}:{port}"
-
-            params = []
-            if auth:
-                params.append(f"auth={auth}")
-            if protocol:
-                params.append(f"protocol={protocol}")
-            if obfs:
-                params.append(f"obfs={obfs}")
-            if obfs_password:
-                params.append(f"obfs-password={obfs_password}")
-
-            if params:
-                uri += "?" + "&".join(params)
-
-            if name:
-                uri += f"#{name}"
-
-            return uri
-
-        except Exception as e:
-            self.logger.debug(f"Hysteria转换失败: {str(e)}")
-            return None
-
-    def _convert_socks5_proxy(self, proxy: Dict[str, Any]) -> Optional[str]:
-        """转换SOCKS5代理为URI"""
-        try:
-            server = proxy.get("server", "")
-            port = proxy.get("port", "")
-            username = proxy.get("username", "")
-            password = proxy.get("password", "")
-            name = proxy.get("name", "")
-
-            if not all([server, port]):
-                return None
-
-            uri = f"socks5://{server}:{port}"
-
-            if username and password:
-                auth_b64 = base64.b64encode(f"{username}:{password}".encode()).decode()
-                uri = f"socks5://{auth_b64}@{server}:{port}"
-
-            if name:
-                uri += f"#{name}"
-
-            return uri
-
-        except Exception as e:
-            self.logger.debug(f"SOCKS5转换失败: {str(e)}")
-            return None
 
     def _filter_and_deduplicate(self, nodes: List[str]) -> List[str]:
         """过滤和去重节点"""

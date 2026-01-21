@@ -8,7 +8,7 @@ import logging
 import os
 from datetime import datetime
 
-from config.settings import LOG_LEVEL, LOG_FORMAT, LOG_FILE, LOGS_DIR
+from src.config.settings import LOG_LEVEL, LOG_FORMAT, LOG_FILE, LOGS_DIR
 
 def setup_logging():
     """设置日志配置"""

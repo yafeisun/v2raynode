@@ -8,7 +8,7 @@ import os
 import json
 from datetime import datetime
 from src.utils.logger import get_logger
-from config.settings import (
+from src.config.settings import (
     NODELIST_FILE, 
     NODELIST_HK_FILE, 
     WEBPAGE_LINKS_FILE, 

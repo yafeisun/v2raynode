@@ -108,7 +108,7 @@ class WebsiteConfig:
     def _load_websites(self):
         """从配置文件加载网站配置"""
         try:
-            from config.websites import WEBSITES
+            from src.config.websites import WEBSITES
 
             self._websites = WEBSITES
         except ImportError:

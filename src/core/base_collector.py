@@ -8,7 +8,6 @@ import requests
 import re
 import time
 import os
-import base64
 from datetime import datetime
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
@@ -21,9 +20,19 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from playwright.sync_api import sync_playwright
 
-from config.settings import *
-from config.websites import *
+from src.config.settings import *
+from src.config.websites import *
 from src.utils.logger import get_logger
+from src.core.protocol_converter import get_converter
+from src.core.exceptions import (
+    CollectorDisabledError,
+    ArticleLinkNotFoundError,
+    SubscriptionLinkNotFoundError,
+    NetworkError,
+    RequestTimeoutError,
+    ConnectionError as V2RayConnectionError,
+    ProxyError,
+)
 
 
 class BaseCollector(ABC):
@@ -100,7 +109,7 @@ class BaseCollector(ABC):
 
         # 配置代理（如果系统有设置代理）
         import os
-        from config.websites import BROWSER_ONLY_SITES
+        from src.config.websites import BROWSER_ONLY_SITES
 
         http_proxy = os.getenv("http_proxy") or os.getenv("HTTP_PROXY")
         https_proxy = os.getenv("https_proxy") or os.getenv("HTTPS_PROXY")
@@ -154,75 +163,25 @@ class BaseCollector(ABC):
 
         self.raw_data = ""
 
+        # 协议转换器
+        self.converter = get_converter(self.logger)
+
+        # 初始化辅助处理器
+        from src.core.handlers import RequestHandler, ArticleFinder, SubscriptionExtractor
+
+        self.request_handler = RequestHandler(
+            self.session, self.timeout, self.retry_count, self.logger
+        )
+        self.article_finder = ArticleFinder(
+            self.base_url, self.site_name, self.logger, self.site_config
+        )
+        self.subscription_extractor = SubscriptionExtractor(
+            self.logger, self.site_config, self.converter, MIN_NODE_LENGTH
+        )
+
     def _make_request(self, url, method="GET", **kwargs):
         """带重试机制的请求方法，支持代理失败时自动切换到直接连接"""
-        last_exception = None
-        using_proxy = bool(
-            self.session.proxies.get("http") or self.session.proxies.get("https")
-        )
-
-        import time
-        import random
-
-        for attempt in range(self.retry_count + 1):
-            try:
-                if os.getenv("GITHUB_ACTIONS") == "true" and attempt > 0:
-                    time.sleep(random.uniform(1, 3))
-
-                response = self.session.request(
-                    method, url, timeout=self.timeout, verify=False, **kwargs
-                )
-                response.raise_for_status()
-
-                if using_proxy and len(response.text) < 1000:
-                    self.logger.warning(
-                        f"返回内容过短（{len(response.text)}字节），可能被拦截: {url}"
-                    )
-                    if attempt == 0:
-                        self.logger.info(f"尝试禁用代理直接访问: {url}")
-                        self.session.proxies = {"http": None, "https": None}
-                        using_proxy = False
-                        continue
-
-                return response
-
-            except requests.exceptions.Timeout as e:
-                last_exception = e
-                self.logger.warning(
-                    f"请求超时 (尝试 {attempt + 1}/{self.retry_count + 1}): {url}"
-                )
-                if attempt < self.retry_count:
-                    time.sleep(2**attempt)  # 指数退避
-
-            except requests.exceptions.ConnectionError as e:
-                last_exception = e
-                self.logger.warning(
-                    f"连接错误 (尝试 {attempt + 1}/{self.retry_count + 1}): {url}"
-                )
-
-                # 如果使用代理且连接失败，尝试禁用代理重试
-                if using_proxy and attempt == 0:
-                    self.logger.info(f"代理连接失败，尝试直接访问: {url}")
-                    self.session.proxies = {"http": None, "https": None}
-                    using_proxy = False
-                    continue
-
-                if attempt < self.retry_count:
-                    time.sleep(2**attempt)
-
-            except requests.exceptions.RequestException as e:
-                last_exception = e
-                self.logger.warning(
-                    f"请求错误 (尝试 {attempt + 1}/{self.retry_count + 1}): {url}"
-                )
-                if attempt < self.retry_count:
-                    time.sleep(1)
-
-        # 所有重试都失败
-        self.logger.error(
-            f"请求失败，已重试 {self.retry_count + 1} 次: {last_exception}"
-        )
-        raise last_exception
+        return self.request_handler.make_request(url, method, **kwargs)
 
     def collect(self):
         """收集节点的主方法"""
@@ -251,6 +210,18 @@ class BaseCollector(ABC):
             self.logger.info(f"{self.site_name}: 收集到 {len(nodes)} 个节点")
             return nodes
 
+        except requests.exceptions.Timeout as e:
+            self.logger.error(f"{self.site_name}: 请求超时 - {str(e)}")
+            return []
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"{self.site_name}: 连接错误 - {str(e)}")
+            return []
+        except requests.exceptions.ProxyError as e:
+            self.logger.error(f"{self.site_name}: 代理错误 - {str(e)}")
+            return []
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"{self.site_name}: 网络请求错误 - {str(e)}")
+            return []
         except Exception as e:
             self.logger.error(f"{self.site_name}: 收集失败 - {str(e)}")
             return []
@@ -280,7 +251,7 @@ class BaseCollector(ABC):
 
             # 访问文章页面并提取订阅链接
             # 对于 BROWSER_ONLY_SITES，直接使用浏览器访问（不使用代理）
-            from config.websites import BROWSER_ONLY_SITES
+            from src.config.websites import BROWSER_ONLY_SITES
 
             site_key = self.site_config.get(
                 "collector_key", self.site_config.get("name")
@@ -339,13 +310,25 @@ class BaseCollector(ABC):
                 "raw_data": content,
             }
 
+        except requests.exceptions.Timeout as e:
+            self.logger.error(f"{self.site_name}: 链接收集超时 - {str(e)}")
+            return {}
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"{self.site_name}: 链接收集连接错误 - {str(e)}")
+            return {}
+        except requests.exceptions.ProxyError as e:
+            self.logger.error(f"{self.site_name}: 链接收集代理错误 - {str(e)}")
+            return {}
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"{self.site_name}: 链接收集网络请求错误 - {str(e)}")
+            return {}
         except Exception as e:
             self.logger.error(f"{self.site_name}: 链接收集失败 - {str(e)}")
             return {}
 
     def get_latest_article_url(self, target_date=None):
         """获取文章URL，支持指定日期"""
-        from config.websites import BROWSER_ONLY_SITES
+        from src.config.websites import BROWSER_ONLY_SITES
 
         try:
             site_key = self.site_config.get(
@@ -353,8 +336,8 @@ class BaseCollector(ABC):
             )
             use_browser_directly = site_key in BROWSER_ONLY_SITES
 
-            self.logger.info(
-                f"DEBUG: site_key='{site_key}', BROWSER_ONLY_SITES={BROWSER_ONLY_SITES}, use_browser_directly={use_browser_directly}"
+            self.logger.debug(
+                f"site_key='{site_key}', BROWSER_ONLY_SITES={BROWSER_ONLY_SITES}, use_browser_directly={use_browser_directly}"
             )
 
             if use_browser_directly:
@@ -394,12 +377,6 @@ class BaseCollector(ABC):
             self.logger.error(f"详细错误: {traceback.format_exc()}")
             return None
 
-            return article_url
-
-        except Exception as e:
-            self.logger.error(f"{self.site_name}: 获取文章URL失败 - {str(e)}")
-            return None
-
     def _find_article_from_soup(self, soup, target_date=None):
         """从BeautifulSoup对象中查找文章URL - 优先今天，其次最近的"""
         # 默认使用今天作为目标日期
@@ -428,10 +405,10 @@ class BaseCollector(ABC):
         dated_links = []
         all_links = soup.find_all("a", href=True)
 
-        self.logger.info(f"找到 {len(all_links)} 个链接，开始提取日期...")
+        self.logger.debug(f"找到 {len(all_links)} 个链接，开始提取日期...")
 
         # 保存HTML内容用于调试（问题网站）
-        from config.websites import BROWSER_ONLY_SITES
+        from src.config.websites import BROWSER_ONLY_SITES
 
         site_key = self.site_config.get("collector_key", self.site_config.get("name"))
         if site_key in BROWSER_ONLY_SITES:
@@ -514,7 +491,7 @@ class BaseCollector(ABC):
 
         # 显示排除统计
         if exclusion_reasons:
-            self.logger.info(f"链接排除统计: {exclusion_reasons}")
+            self.logger.debug(f"链接排除统计: {exclusion_reasons}")
 
         # 显示前几个带日期的链接
         if dated_links:
@@ -696,22 +673,8 @@ class BaseCollector(ABC):
             self.session.proxies = {"http": None, "https": None}
             self.logger.debug("临时禁用代理")
 
-            with sync_playwright() as p:
-                browser = p.chromium.launch(
-                    headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"]
-                )
-                context = browser.new_context(
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    viewport={"width": 1920, "height": 1080},
-                    locale="zh-CN",
-                )
-                page = context.new_page()
-                # 使用 domcontentloaded 避免 networkidle 超时
-                page.goto(self.base_url, wait_until="domcontentloaded", timeout=30000)
-                # 等待额外时间让JS执行
-                page.wait_for_timeout(3000)
-                content = page.content()
-                browser.close()
+            # 使用浏览器获取内容
+            content = self._fetch_page_content_with_browser()
 
             # 恢复代理设置
             self.session.proxies = original_proxies
@@ -719,27 +682,11 @@ class BaseCollector(ABC):
 
             self.logger.info(f"浏览器获取到 {len(content)} 字节内容")
 
-            soup = BeautifulSoup(content, "html.parser")
-
             # 保存调试HTML
-            import os
-            from datetime import datetime as dt
+            self._save_debug_html(content)
 
-            debug_dir = os.path.join(os.getcwd(), "data", "debug")
-            os.makedirs(debug_dir, exist_ok=True)
-            debug_file = os.path.join(
-                debug_dir,
-                f"debug_{self.site_name}_{dt.now().strftime('%Y%m%d_%H%M%S')}.html",
-            )
-            try:
-                with open(debug_file, "w", encoding="utf-8") as f:
-                    f.write(content)
-                self.logger.info(
-                    f"💾 保存调试HTML到: {debug_file} ({len(content)} bytes)"
-                )
-            except Exception as e:
-                self.logger.warning(f"保存调试HTML失败: {str(e)}")
-
+            # 解析文章URL
+            soup = BeautifulSoup(content, "html.parser")
             article_url = self._find_article_from_soup(soup, target_date)
 
             if article_url:
@@ -755,6 +702,55 @@ class BaseCollector(ABC):
             if "original_proxies" in dir():
                 self.session.proxies = original_proxies
             return None
+
+    def _fetch_page_content_with_browser(self) -> str:
+        """
+        使用浏览器获取页面内容
+
+        Returns:
+            页面HTML内容
+        """
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"]
+            )
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                viewport={"width": 1920, "height": 1080},
+                locale="zh-CN",
+            )
+            page = context.new_page()
+            # 使用 domcontentloaded 避免 networkidle 超时
+            page.goto(self.base_url, wait_until="domcontentloaded", timeout=30000)
+            # 等待额外时间让JS执行
+            page.wait_for_timeout(3000)
+            content = page.content()
+            browser.close()
+
+        return content
+
+    def _save_debug_html(self, content: str):
+        """
+        保存调试HTML到文件
+
+        Args:
+            content: HTML内容
+        """
+        import os
+        from datetime import datetime as dt
+
+        debug_dir = os.path.join(os.getcwd(), "data", "debug")
+        os.makedirs(debug_dir, exist_ok=True)
+        debug_file = os.path.join(
+            debug_dir,
+            f"debug_{self.site_name}_{dt.now().strftime('%Y%m%d_%H%M%S')}.html",
+        )
+        try:
+            with open(debug_file, "w", encoding="utf-8") as f:
+                f.write(content)
+            self.logger.info(f"💾 保存调试HTML到: {debug_file} ({len(content)} bytes)")
+        except Exception as e:
+            self.logger.warning(f"保存调试HTML失败: {str(e)}")
 
     def extract_nodes_from_article(self, article_url):
         """从文章中提取节点"""
@@ -822,8 +818,8 @@ class BaseCollector(ABC):
                 pattern = rf"{keyword}[^:]*[:：]\s*(https?://[^\s\n\r]+)"
                 matches = re.findall(pattern, content, re.IGNORECASE)
                 links.extend(matches)
-            except:
-                pass
+            except Exception:
+                self.logger.debug(f"SUBSCRIPTION_KEYWORDS模式匹配失败: {keyword}")
 
         # 清理和去重
         cleaned_links = []
@@ -877,88 +873,13 @@ class BaseCollector(ABC):
                 all_nodes.extend(nodes)
 
             # 方式2: 尝试Base64解码
-            try:
-                import base64
-
-                # 补齐base64 padding
-                padded_content = content + "=" * (-len(content) % 4)
-                decoded_content = base64.b64decode(padded_content).decode(
-                    "utf-8", errors="ignore"
-                )
-                nodes = self._extract_nodes_from_text(decoded_content)
-                if nodes:
-                    self.logger.info(f"Base64解码后获取到 {len(nodes)} 个节点")
-                    all_nodes.extend(nodes)
-                else:
-                    # 尝试双重Base64解码（某些订阅链接使用双重编码）
-                    try:
-                        import base64
-
-                        decoded_bytes = base64.b64decode(padded_content)
-                        double_padded = decoded_bytes + b"=" * (-len(decoded_bytes) % 4)
-                        double_decoded = base64.b64decode(double_padded).decode(
-                            "utf-8", errors="ignore"
-                        )
-                        nodes = self._extract_nodes_from_text(double_decoded)
-                        if nodes:
-                            self.logger.info(
-                                f"双重Base64解码后获取到 {len(nodes)} 个节点"
-                            )
-                            all_nodes.extend(nodes)
-                    except Exception:
-                        pass
-            except Exception as e:
-                # 不是Base64格式，跳过
-                self.logger.debug(f"Base64解码失败: {str(e)}")
+            all_nodes.extend(self._try_base64_decode(content))
 
             # 方式3: 尝试URL解码
-            try:
-                from urllib.parse import unquote
-
-                url_decoded = unquote(content)
-                if url_decoded != content:  # 确实发生了解码
-                    nodes = self._extract_nodes_from_text(url_decoded)
-                    if nodes:
-                        self.logger.info(f"URL解码后获取到 {len(nodes)} 个节点")
-                        all_nodes.extend(nodes)
-            except:
-                pass
+            all_nodes.extend(self._try_url_decode(content))
 
             # 方式4: 逐行分割后提取（处理某些特殊格式）
-            lines = content.split("\n")
-            for line in lines:
-                line = line.strip()
-                if not line or len(line) < 10:
-                    continue
-
-                # 尝试从单行提取节点
-                nodes = self._extract_nodes_from_text(line)
-                all_nodes.extend(nodes)
-
-                # 尝试Base64解码单行
-                try:
-                    import base64
-
-                    padded_line = line + "=" * (-len(line) % 4)
-                    decoded_line = base64.b64decode(padded_line).decode(
-                        "utf-8", errors="ignore"
-                    )
-                    nodes = self._extract_nodes_from_text(decoded_line)
-                    all_nodes.extend(nodes)
-
-                    # 尝试双重Base64解码
-                    try:
-                        decoded_bytes = base64.b64decode(padded_line)
-                        double_padded = decoded_bytes + b"=" * (-len(decoded_bytes) % 4)
-                        double_decoded = base64.b64decode(double_padded).decode(
-                            "utf-8", errors="ignore"
-                        )
-                        nodes = self._extract_nodes_from_text(double_decoded)
-                        all_nodes.extend(nodes)
-                    except Exception:
-                        pass
-                except Exception:
-                    pass
+            all_nodes.extend(self._try_line_by_line_parse(content))
 
             # 方式5: 尝试解析 YAML/JSON 格式（Clash配置）
             yaml_nodes = self._extract_yaml_json_nodes(content)
@@ -966,13 +887,8 @@ class BaseCollector(ABC):
                 self.logger.info(f"YAML/JSON格式解析获取到 {len(yaml_nodes)} 个节点")
                 all_nodes.extend(yaml_nodes)
 
-            # 去重
-            unique_nodes = list(set(all_nodes))
-
-            # 过滤长度
-            unique_nodes = [
-                node for node in unique_nodes if len(node) >= MIN_NODE_LENGTH
-            ]
+            # 去重和过滤
+            unique_nodes = self._deduplicate_and_filter_nodes(all_nodes)
 
             self.logger.info(
                 f"从订阅链接获取到 {len(unique_nodes)} 个节点 (原始: {len(all_nodes)})"
@@ -982,6 +898,132 @@ class BaseCollector(ABC):
         except Exception as e:
             self.logger.error(f"获取订阅链接失败: {str(e)}")
             return []
+
+    def _try_base64_decode(self, content: str) -> List[str]:
+        """
+        尝试Base64解码内容
+
+        Args:
+            content: 原始内容
+
+        Returns:
+            解析到的节点列表
+        """
+        nodes = []
+        try:
+            import base64
+
+            # 补齐base64 padding
+            padded_content = content + "=" * (-len(content) % 4)
+            decoded_content = base64.b64decode(padded_content).decode(
+                "utf-8", errors="ignore"
+            )
+            nodes = self._extract_nodes_from_text(decoded_content)
+            if nodes:
+                self.logger.info(f"Base64解码后获取到 {len(nodes)} 个节点")
+                return nodes
+
+            # 尝试双重Base64解码（某些订阅链接使用双重编码）
+            decoded_bytes = base64.b64decode(padded_content)
+            double_padded = decoded_bytes + b"=" * (-len(decoded_bytes) % 4)
+            double_decoded = base64.b64decode(double_padded).decode(
+                "utf-8", errors="ignore"
+            )
+            nodes = self._extract_nodes_from_text(double_decoded)
+            if nodes:
+                self.logger.info(f"双重Base64解码后获取到 {len(nodes)} 个节点")
+
+        except Exception as e:
+            self.logger.debug(f"Base64解码失败: {str(e)}")
+
+        return nodes
+
+    def _try_url_decode(self, content: str) -> List[str]:
+        """
+        尝试URL解码内容
+
+        Args:
+            content: 原始内容
+
+        Returns:
+            解析到的节点列表
+        """
+        nodes = []
+        try:
+            from urllib.parse import unquote
+
+            url_decoded = unquote(content)
+            if url_decoded != content:  # 确实发生了解码
+                nodes = self._extract_nodes_from_text(url_decoded)
+                if nodes:
+                    self.logger.info(f"URL解码后获取到 {len(nodes)} 个节点")
+        except Exception as e:
+            self.logger.debug(f"URL解码失败: {str(e)}")
+
+        return nodes
+
+    def _try_line_by_line_parse(self, content: str) -> List[str]:
+        """
+        逐行解析内容（处理某些特殊格式）
+
+        Args:
+            content: 原始内容
+
+        Returns:
+            解析到的节点列表
+        """
+        nodes = []
+        lines = content.split("\n")
+
+        for line in lines:
+            line = line.strip()
+            if not line or len(line) < 10:
+                continue
+
+            # 尝试从单行提取节点
+            nodes.extend(self._extract_nodes_from_text(line))
+
+            # 尝试Base64解码单行
+            try:
+                import base64
+
+                padded_line = line + "=" * (-len(line) % 4)
+                decoded_line = base64.b64decode(padded_line).decode(
+                    "utf-8", errors="ignore"
+                )
+                nodes.extend(self._extract_nodes_from_text(decoded_line))
+
+                # 尝试双重Base64解码
+                decoded_bytes = base64.b64decode(padded_line)
+                double_padded = decoded_bytes + b"=" * (-len(decoded_bytes) % 4)
+                double_decoded = base64.b64decode(double_padded).decode(
+                    "utf-8", errors="ignore"
+                )
+                nodes.extend(self._extract_nodes_from_text(double_decoded))
+            except Exception:
+                pass
+
+        return nodes
+
+    def _deduplicate_and_filter_nodes(self, nodes: List[str]) -> List[str]:
+        """
+        去重和过滤节点
+
+        Args:
+            nodes: 原始节点列表
+
+        Returns:
+            去重和过滤后的节点列表
+        """
+        # 去重
+        unique_nodes = list(set(nodes))
+
+        # 过滤长度
+        unique_nodes = [
+            node for node in unique_nodes if len(node) >= MIN_NODE_LENGTH
+        ]
+
+        return unique_nodes
 
     def _extract_nodes_from_text(self, text):
         """从文本中提取节点"""
@@ -1001,136 +1043,20 @@ class BaseCollector(ABC):
         """从 YAML/JSON 格式提取节点（Clash配置格式）"""
         nodes = []
         try:
-            import json
-            import yaml
-
             # 首先尝试作为完整JSON解析
-            try:
-                data = json.loads(content.strip())
-                proxies_list = None
-
-                if isinstance(data, list):
-                    # JSON数组格式
-                    proxies_list = data
-                    self.logger.info(
-                        f"识别为JSON数组格式，包含 {len(proxies_list)} 个代理"
-                    )
-                elif isinstance(data, dict):
-                    # JSON对象格式
-                    if "proxies" in data:
-                        proxies_list = data["proxies"]
-                        self.logger.info(
-                            f"识别为JSON对象格式，包含 {len(proxies_list)} 个代理"
-                        )
-
-                if proxies_list:
-                    for proxy in proxies_list:
-                        try:
-                            node = self._convert_clash_proxy_to_node(proxy)
-                            if node and len(node) >= MIN_NODE_LENGTH:
-                                nodes.append(node)
-                        except Exception as e:
-                            self.logger.debug(f"JSON代理转换失败: {str(e)}")
-                    return nodes
-
-            except json.JSONDecodeError:
-                # 不是JSON格式，尝试YAML
-                pass
+            json_nodes = self._parse_json_format(content)
+            if json_nodes:
+                return json_nodes
 
             # 尝试作为YAML解析
-            try:
-                self.logger.info("开始尝试YAML解析...")
-                yaml_data = yaml.safe_load(content.strip())
-                self.logger.info(f"YAML解析成功，数据类型: {type(yaml_data)}")
-
-                # 处理Clash配置文件格式（包含proxies字段的完整配置）
-                if isinstance(yaml_data, dict) and "proxies" in yaml_data:
-                    proxies_list = yaml_data["proxies"]
-                    self.logger.info(
-                        f"识别为Clash配置格式，包含 {len(proxies_list)} 个代理"
-                    )
-
-                    for i, proxy in enumerate(proxies_list):
-                        try:
-                            node = self._convert_clash_proxy_to_node(proxy)
-                            self.logger.debug(
-                                f"YAML代理 {i + 1} 转换结果长度: {len(node) if node else 0}"
-                            )
-                            if node and len(node) >= MIN_NODE_LENGTH:
-                                nodes.append(node)
-                            else:
-                                self.logger.warning(
-                                    f"YAML代理 {i + 1} 转换结果太短或为空"
-                                )
-                        except Exception as e:
-                            self.logger.warning(f"YAML代理 {i + 1} 转换失败: {str(e)}")
-                    self.logger.info(f"YAML解析完成，共转换 {len(nodes)} 个节点")
-                    return nodes
-
-                # 处理只有代理列表的格式（兼容旧格式）
-                elif isinstance(yaml_data, list):
-                    self.logger.info(
-                        f"识别为代理列表格式，包含 {len(yaml_data)} 个代理"
-                    )
-                    for i, proxy in enumerate(yaml_data):
-                        try:
-                            node = self._convert_clash_proxy_to_node(proxy)
-                            if node and len(node) >= MIN_NODE_LENGTH:
-                                nodes.append(node)
-                        except Exception as e:
-                            self.logger.warning(f"YAML代理 {i + 1} 转换失败: {str(e)}")
-                    self.logger.info(f"YAML解析完成，共转换 {len(nodes)} 个节点")
-                    return nodes
-                else:
-                    self.logger.info(f"YAML数据格式不支持: {type(yaml_data)}")
-
-            except Exception as e:
-                # YAML解析失败，回退到行内JSON解析
-                pass
+            yaml_nodes = self._parse_yaml_format(content)
+            if yaml_nodes:
+                return yaml_nodes
 
             # 回退方案：从文本中提取行内JSON对象
-            if "proxies:" in content or "proxies" in content:
-                lines = content.split("\n")
-                json_objects = []
-
-                for line in lines:
-                    line = line.strip()
-                    # 查找行内的 JSON 对象（支持嵌套）
-                    json_matches = re.findall(r"-\s*(\{[^}]*\{[^}]*\}[^}]*\})", line)
-                    if not json_matches:
-                        json_match = re.search(r"-\s*(\{.+\})", line)
-                        if json_match:
-                            json_matches.append(json_match.group(1))
-                        if json_match:
-                            json_matches = [json_match.group(1)]
-
-                    for json_str in json_matches:
-                        json_objects.append(json_str)
-
-                self.logger.info(f"从YAML文本中找到 {len(json_objects)} 个行内JSON对象")
-
-                success_count = 0
-                error_count = 0
-
-                for json_str in json_objects:
-                    try:
-                        proxy = json.loads(json_str)
-                        node = self._convert_clash_proxy_to_node(proxy)
-                        if node and len(node) >= MIN_NODE_LENGTH:
-                            nodes.append(node)
-                            success_count += 1
-                        else:
-                            error_count += 1
-                    except json.JSONDecodeError as e:
-                        error_count += 1
-                        if error_count <= 3:  # 只显示前3个错误
-                            self.logger.warning(f"行内JSON解析失败: {str(e)[:100]}")
-                    except Exception as e:
-                        error_count += 1
-
-                self.logger.info(
-                    f"YAML行内JSON解析完成: {success_count} 成功, {error_count} 失败"
-                )
+            inline_json_nodes = self._parse_inline_json(content)
+            if inline_json_nodes:
+                return inline_json_nodes
 
         except ImportError as e:
             self.logger.warning(f"模块导入失败: {str(e)}")
@@ -1139,225 +1065,140 @@ class BaseCollector(ABC):
 
         return nodes
 
-    def _convert_clash_proxy_to_node(self, proxy):
-        """将 Clash proxy 对象转换为 V2Ray 节点 URI 格式"""
+    def _parse_json_format(self, content: str) -> List[str]:
+        """解析JSON格式内容"""
+        nodes = []
         try:
-            proxy_type = proxy.get("type", "").lower()
-
-            if proxy_type == "vless":
-                return self._convert_vless_to_uri(proxy)
-            elif proxy_type == "vmess":
-                return self._convert_vmess_to_uri(proxy)
-            elif proxy_type == "trojan":
-                return self._convert_trojan_to_uri(proxy)
-            elif proxy_type == "ss":
-                return self._convert_ss_to_uri(proxy)
-            elif proxy_type in ["hysteria", "hysteria2"]:
-                return self._convert_hysteria_to_uri(proxy)
-            else:
-                self.logger.debug(f"不支持的代理类型: {proxy_type}")
-                return None
-
-        except Exception as e:
-            self.logger.warning(f"代理转换失败: {str(e)}")
-            return None
-
-    def _convert_vless_to_uri(self, proxy):
-        """转换 VLESS 配置为 URI"""
-        try:
-            server = proxy.get("server", "")
-            port = proxy.get("port", "")
-            uuid = proxy.get("uuid", "")
-            name = proxy.get("name", "")
-            tls = proxy.get("tls", False)
-            servername = proxy.get("servername", "")
-            network = proxy.get("network", "tcp")
-            security = proxy.get("security", "")
-            encryption = proxy.get("encryption", "none")
-            client_fingerprint = proxy.get("client-fingerprint", "")
-
-            # 构建 URI
-            uri = f"vless://{uuid}@{server}:{port}"
-
-            # 构建查询参数
-            params = []
-            if network:
-                params.append(f"type={network}")
-            if security:
-                params.append(f"security={security}")
-            if encryption:
-                params.append(f"encryption={encryption}")
-            if tls:
-                params.append("security=tls")
-            if servername:
-                params.append(f"sni={servername}")
-            if client_fingerprint:
-                params.append(f"fp={client_fingerprint}")
-
-            # WebSocket 参数
-            if network == "ws" or network == "grpc":
-                ws_opts = proxy.get("ws-opts", {})
-                if ws_opts:
-                    headers = ws_opts.get("headers", {})
-                    host = headers.get("Host", "")
-                    if host:
-                        params.append(f"host={host}")
-
-                    path = ws_opts.get("path", "")
-                    if path:
-                        params.append(f"path={path}")
-
-            if params:
-                uri += "?" + "&".join(params)
-
-            # 添加名称
-            if name:
-                uri += f"#{name}"
-
-            return uri
-
-        except Exception as e:
-            self.logger.warning(f"VLESS 转换失败: {str(e)}")
-            return None
-
-    def _convert_vmess_to_uri(self, proxy):
-        """转换 VMess 配置为 URI（Base64 编码）"""
-        try:
-            import base64
             import json
 
-            vmess_config = {
-                "v": "2",
-                "ps": proxy.get("name", ""),
-                "add": proxy.get("server", ""),
-                "port": proxy.get("port", ""),
-                "id": proxy.get("uuid", proxy.get("id", "")),
-                "aid": proxy.get("alterId", 0),
-                "net": proxy.get("network", "tcp"),
-                "type": proxy.get("cipher", "auto"),
-                "host": proxy.get("servername", ""),
-                "path": proxy.get("path", ""),
-                "tls": "tls" if proxy.get("tls") else "",
-            }
+            data = json.loads(content.strip())
+            proxies_list = None
 
-            config_json = json.dumps(vmess_config)
-            config_b64 = base64.b64encode(config_json.encode()).decode()
-            uri = f"vmess://{config_b64}"
+            if isinstance(data, list):
+                proxies_list = data
+                self.logger.info(f"识别为JSON数组格式，包含 {len(proxies_list)} 个代理")
+            elif isinstance(data, dict) and "proxies" in data:
+                proxies_list = data["proxies"]
+                self.logger.info(f"识别为JSON对象格式，包含 {len(proxies_list)} 个代理")
 
-            name = proxy.get("name", "")
-            if name:
-                uri += f"#{name}"
+            if proxies_list:
+                for proxy in proxies_list:
+                    try:
+                        node = self._convert_clash_proxy_to_node(proxy)
+                        if node and len(node) >= MIN_NODE_LENGTH:
+                            nodes.append(node)
+                    except Exception as e:
+                        self.logger.debug(f"JSON代理转换失败: {str(e)}")
 
-            return uri
+        except json.JSONDecodeError:
+            pass
 
-        except Exception as e:
-            self.logger.warning(f"VMess 转换失败: {str(e)}")
-            return None
+        return nodes
 
-    def _convert_trojan_to_uri(self, proxy):
-        """转换 Trojan 配置为 URI"""
+    def _parse_yaml_format(self, content: str) -> List[str]:
+        """解析YAML格式内容"""
+        nodes = []
         try:
-            server = proxy.get("server", "")
-            port = proxy.get("port", "")
-            password = proxy.get("password", "")
-            name = proxy.get("name", "")
-            sni = proxy.get("sni", proxy.get("servername", ""))
-            security = proxy.get("skip-cert-verify", "")
+            import yaml
 
-            uri = f"trojan://{password}@{server}:{port}"
+            self.logger.info("开始尝试YAML解析...")
+            yaml_data = yaml.safe_load(content.strip())
+            self.logger.info(f"YAML解析成功，数据类型: {type(yaml_data)}")
 
-            params = []
-            if sni:
-                params.append(f"sni={sni}")
-            if security:
-                params.append("allowInsecure=1")
+            if isinstance(yaml_data, dict) and "proxies" in yaml_data:
+                return self._process_yaml_proxies(yaml_data["proxies"], "Clash配置格式")
 
-            if params:
-                uri += "?" + "&".join(params)
+            elif isinstance(yaml_data, list):
+                return self._process_yaml_proxies(yaml_data, "代理列表格式")
 
-            if name:
-                uri += f"#{name}"
-
-            return uri
-
-        except Exception as e:
-            self.logger.warning(f"Trojan 转换失败: {str(e)}")
-            return None
-
-    def _convert_ss_to_uri(self, proxy):
-        """转换 Shadowsocks 配置为 URI"""
-        try:
-            import base64
-            from urllib.parse import quote
-
-            server = proxy.get("server", "")
-            port = proxy.get("port", "")
-            password = proxy.get("password", "")
-            method = proxy.get("cipher", proxy.get("method", "aes-256-gcm"))
-            plugin = proxy.get("plugin", "")
-            plugin_opts = proxy.get("plugin-opts", "")
-            name = proxy.get("name", "")
-
-            # 构建 userinfo: method:password
-            userinfo = f"{method}:{password}"
-            userinfo_b64 = base64.b64encode(userinfo.encode()).decode()
-
-            uri = f"ss://{userinfo_b64}@{server}:{port}"
-
-            # 添加插件参数
-            if plugin:
-                params = f"plugin={plugin}"
-                if plugin_opts:
-                    params += f";{plugin_opts}"
-                uri += f"?{params}"
-
-            if name:
-                uri += f"#{name}"
-
-            return uri
-
-        except Exception as e:
-            self.logger.warning(f"SS 转换失败: {str(e)}")
-            return None
-
-    def _convert_hysteria_to_uri(self, proxy):
-        """转换 Hysteria/Hysteria2 配置为 URI"""
-        try:
-            from urllib.parse import quote
-
-            server = proxy.get("server", "")
-            port = proxy.get("port", "")
-            password = proxy.get("password", proxy.get("auth", ""))
-            name = proxy.get("name", "")
-            protocol = proxy.get("type", "hysteria")
-            sni = proxy.get("sni", proxy.get("servername", ""))
-            insecure = proxy.get("skip-cert-verify", False)
-
-            # URL encode password
-            password_encoded = quote(password, safe="")
-
-            if protocol == "hysteria2":
-                uri = f"hysteria2://{password_encoded}@{server}:{port}"
             else:
-                uri = f"hysteria://{password_encoded}@{server}:{port}"
-
-            params = []
-            if sni:
-                params.append(f"sni={sni}")
-            if insecure:
-                params.append("insecure=1")
-
-            if params:
-                uri += "?" + "&".join(params)
-
-            if name:
-                uri += f"#{name}"
-
-            return uri
+                self.logger.info(f"YAML数据格式不支持: {type(yaml_data)}")
 
         except Exception as e:
-            self.logger.warning(f"Hysteria 转换失败: {str(e)}")
-            return None
+            pass
+
+        return nodes
+
+    def _process_yaml_proxies(self, proxies_list: List, format_name: str) -> List[str]:
+        """处理YAML代理列表"""
+        nodes = []
+        self.logger.info(f"识别为{format_name}，包含 {len(proxies_list)} 个代理")
+
+        for i, proxy in enumerate(proxies_list):
+            try:
+                node = self._convert_clash_proxy_to_node(proxy)
+                if node and len(node) >= MIN_NODE_LENGTH:
+                    nodes.append(node)
+                else:
+                    self.logger.warning(f"YAML代理 {i + 1} 转换结果太短或为空")
+            except Exception as e:
+                self.logger.warning(f"YAML代理 {i + 1} 转换失败: {str(e)}")
+
+        self.logger.info(f"YAML解析完成，共转换 {len(nodes)} 个节点")
+        return nodes
+
+    def _parse_inline_json(self, content: str) -> List[str]:
+        """从YAML文本中提取行内JSON对象"""
+        nodes = []
+
+        if "proxies:" not in content and "proxies" not in content:
+            return nodes
+
+        try:
+            import json
+
+            lines = content.split("\n")
+            json_objects = self._extract_json_objects_from_lines(lines)
+
+            self.logger.info(f"从YAML文本中找到 {len(json_objects)} 个行内JSON对象")
+
+            success_count = 0
+            error_count = 0
+
+            for json_str in json_objects:
+                try:
+                    proxy = json.loads(json_str)
+                    node = self._convert_clash_proxy_to_node(proxy)
+                    if node and len(node) >= MIN_NODE_LENGTH:
+                        nodes.append(node)
+                        success_count += 1
+                    else:
+                        error_count += 1
+                except json.JSONDecodeError as e:
+                    error_count += 1
+                    if error_count <= 3:
+                        self.logger.warning(f"行内JSON解析失败: {str(e)[:100]}")
+                except Exception as e:
+                    error_count += 1
+
+            self.logger.info(f"YAML行内JSON解析完成: {success_count} 成功, {error_count} 失败")
+
+        except Exception as e:
+            self.logger.warning(f"行内JSON解析失败: {str(e)}")
+
+        return nodes
+
+    def _extract_json_objects_from_lines(self, lines: List[str]) -> List[str]:
+        """从行列表中提取JSON对象"""
+        json_objects = []
+
+        for line in lines:
+            line = line.strip()
+            # 查找行内的 JSON 对象（支持嵌套）
+            json_matches = re.findall(r"-\s*(\{[^}]*\{[^}]*\}[^}]*\})", line)
+            if not json_matches:
+                json_match = re.search(r"-\s*(\{.+\})", line)
+                if json_match:
+                    json_matches.append(json_match.group(1))
+
+            for json_str in json_matches:
+                json_objects.append(json_str)
+
+        return json_objects
+
+    def _convert_clash_proxy_to_node(self, proxy):
+        """将 Clash proxy 对象转换为 V2Ray 节点 URI 格式"""
+        return self.converter.convert(proxy)
 
     def get_v2ray_subscription_links(self, article_url):
         """获取V2Ray订阅链接"""
@@ -1425,7 +1266,7 @@ class BaseCollector(ABC):
 
             return True
 
-        except:
+        except Exception:
             return False
 
     def extract_direct_nodes(self, content):
@@ -1469,10 +1310,10 @@ class BaseCollector(ABC):
                         ):
                             decoded_nodes = self.parse_node_text(decoded)
                             nodes.extend(decoded_nodes)
-                    except:
-                        pass
-            except:
-                pass
+                    except Exception as e:
+                        self.logger.debug(f"单行Base64解码失败: {str(e)}")
+            except Exception as e:
+                self.logger.debug(f"逐行处理失败: {str(e)}")
 
         return list(set(nodes))  # 去重
 
@@ -1515,8 +1356,8 @@ class BaseCollector(ABC):
                         from urllib.parse import unquote
 
                         data = unquote(data)
-                    except:
-                        pass
+                    except Exception as e:
+                        self.logger.debug(f"URL解码失败: {str(e)}")
 
                     decoded = base64.b64decode(data).decode("utf-8", errors="ignore")
 
@@ -1533,10 +1374,10 @@ class BaseCollector(ABC):
                                     f"vmess://{base64.b64encode(decoded.encode()).decode()}"
                                 )
                                 continue
-                        except:
-                            pass
-                except:
-                    pass
+                        except Exception as e:
+                            self.logger.debug(f"VMess JSON解析失败: {str(e)}")
+                except Exception as e:
+                    self.logger.debug(f"ss节点修复失败: {str(e)}")
 
             # 保持原样
             fixed_nodes.append(node)
@@ -1670,14 +1511,15 @@ class BaseCollector(ABC):
                 re.IGNORECASE,
             )
             return url_pattern.match(url) is not None
-        except:
+        except Exception as e:
+            self.logger.debug(f"URL验证失败: {str(e)}")
             return False
 
     def _is_valid_subscription_link(self, url):
         """验证是否为有效的V2Ray订阅链接"""
         try:
             # 导入排除模式
-            from config.websites import EXCLUDED_SUBSCRIPTION_PATTERNS
+            from src.config.websites import EXCLUDED_SUBSCRIPTION_PATTERNS
 
             # 检查是否匹配排除模式
             for pattern in EXCLUDED_SUBSCRIPTION_PATTERNS:

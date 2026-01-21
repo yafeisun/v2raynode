@@ -155,8 +155,8 @@ class ClashNodeCCCollector(BaseCollector):
                         ):
                             links.append(clean_link)
                             self.logger.info(f"通过关键词找到订阅链接: {clean_link}")
-            except:
-                pass
+            except Exception as e:
+                self.logger.debug(f"关键词订阅链接匹配失败: {str(e)}")
 
         # 查找可能在特定区域中的链接
         area_patterns = [
@@ -222,7 +222,7 @@ class ClashNodeCCCollector(BaseCollector):
         nodes = []
 
         # 使用标准节点模式
-        from config.websites import NODE_PATTERNS
+        from src.config.websites import NODE_PATTERNS
 
         for pattern in NODE_PATTERNS:
             try:
@@ -263,10 +263,10 @@ class ClashNodeCCCollector(BaseCollector):
                     ):
                         decoded_nodes = self.parse_node_text(decoded)
                         nodes.extend(decoded_nodes)
-                except:
-                    pass
-        except:
-            pass
+                except Exception as e:
+                    self.logger.debug(f"Base64解码失败: {str(e)}")
+        except Exception as e:
+            self.logger.debug(f"Base64模式匹配失败: {str(e)}")
 
         return list(set(nodes))  # 去重
 

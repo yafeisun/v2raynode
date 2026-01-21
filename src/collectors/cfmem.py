@@ -8,7 +8,7 @@ import re
 import base64
 from bs4 import BeautifulSoup
 from src.core.base_collector import BaseCollector
-from config.settings import MIN_NODE_LENGTH
+from src.config.settings import MIN_NODE_LENGTH
 
 
 class CfmemCollector(BaseCollector):
@@ -149,7 +149,7 @@ class CfmemCollector(BaseCollector):
 
         # 只使用V2Ray节点模式
         # 使用所有节点模式
-        from config.websites import NODE_PATTERNS
+        from src.config.websites import NODE_PATTERNS
 
         for pattern in NODE_PATTERNS:
             try:

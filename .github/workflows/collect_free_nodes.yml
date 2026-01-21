@@ -20,6 +20,7 @@ jobs:
       contents: write
     env:
       TZ: Asia/Shanghai  # 设置时区为北京时间，解决文章链接匹配问题
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     steps:
     - name: Checkout repository
@@ -38,7 +39,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r config/requirements.txt
+        pip install -r src/config/requirements.txt
         pip install pysocks  # 支持 SOCKS5 代理
         pip install playwright>=1.40.0
         playwright install chromium  # 安装Chromium浏览器
@@ -184,24 +185,26 @@ jobs:
         echo "收集节点已提交并推送到仓库"
     
     - name: Trigger Karing latency test
+      env:
+        GH_TOKEN: ${{ github.token }}
       if: steps.collection_changes.outputs.has_nodetotal_changes == 'true'
       run: |
         echo "🚀 触发Karing延迟测试..."
-        
+
         # 获取当前提交SHA
         current_sha=$(git rev-parse HEAD)
         total_count="${{ steps.collection_changes.outputs.total_node_count }}"
-        
+
         echo "当前提交: $current_sha"
         echo "总节点数: $total_count"
-        
+
         # 使用gh CLI触发karing测速workflow
         gh workflow run test_nodes_karing.yml \
           --ref main \
           -f trigger_collection=true \
           -f collection_commit="$current_sha" \
           -f total_nodes="$total_count"
-        
+
         echo "✅ Karing延迟测试已触发"
     
     - name: Create summary (collection)

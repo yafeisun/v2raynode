@@ -10,7 +10,7 @@ import random
 from datetime import datetime
 from bs4 import BeautifulSoup
 from src.core.base_collector import BaseCollector
-from config.websites import (
+from src.config.websites import (
     SUBSCRIPTION_PATTERNS,
     SUBSCRIPTION_KEYWORDS,
     UNIVERSAL_SELECTORS,
@@ -144,8 +144,8 @@ class FreeV2rayNodeCollector(BaseCollector):
                 pattern = rf"{keyword}[^:]*[:：]\s*(https?://[^\s\n\r]+)"
                 matches = re.findall(pattern, content, re.IGNORECASE)
                 links.extend(matches)
-            except:
-                pass
+            except Exception as e:
+                self.logger.debug(f"关键词匹配失败: {str(e)}")
 
         # 清理和去重
         cleaned_links = []

@@ -12,6 +12,12 @@ from datetime import datetime
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from src.core.base_collector import BaseCollector
+from src.core.exceptions import (
+    ArticleLinkNotFoundError,
+    NetworkError,
+    RequestTimeoutError,
+    ConnectionError as V2RayConnectionError,
+)
 
 
 class FreeClashNodeCollector(BaseCollector):
@@ -73,8 +79,17 @@ class FreeClashNodeCollector(BaseCollector):
             self.logger.warning("未找到任何文章链接")
             return None
 
+        except requests.exceptions.Timeout as e:
+            self.logger.error(f"获取最新文章URL超时: {str(e)}")
+            return None
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"获取最新文章URL连接错误: {str(e)}")
+            return None
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"获取最新文章URL网络请求错误: {str(e)}")
+            return None
         except Exception as e:
-            self.logger.error(f"获取最新文章URL失败: {e}")
+            self.logger.error(f"获取最新文章URL失败: {str(e)}")
             return None
 
     def _make_request(self, url, method="GET", **kwargs):

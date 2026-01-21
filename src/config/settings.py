@@ -7,8 +7,8 @@
 import os
 from datetime import datetime
 
-# 项目根目录
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 项目根目录（使用当前工作目录，适用于GitHub Actions）
+PROJECT_ROOT = os.getcwd()
 
 # Git配置
 GIT_EMAIL = "action@github.com"

@@ -12,7 +12,7 @@ from typing import Dict, List, Any
 
 from src.utils.logger import get_logger
 from src.utils.file_handler import FileHandler
-from config.settings import *
+from src.config.settings import *
 
 
 class ResultManager:
@@ -139,11 +139,8 @@ class ResultManager:
                 self.logger.warning("git模块不可用，跳过GitHub更新")
                 return False
 
-            # 获取项目根目录
-            project_root = os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            )
-            os.chdir(project_root)
+            # 使用当前工作目录作为项目根目录（适用于GitHub Actions）
+            project_root = os.getcwd()
 
             # 初始化git仓库
             repo = git.Repo(project_root)

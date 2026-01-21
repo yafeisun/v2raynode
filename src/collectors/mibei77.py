@@ -123,7 +123,7 @@ class Mibei77Collector(BaseCollector):
 
         return cleaned_links
 
-    def _is_valid_subscription_link(self, link):
+    def _is_valid_subscription_link(self, url):
         """验证是否为有效的V2Ray订阅链接"""
         # 排除明显的非V2Ray链接
         excluded_patterns = [
@@ -134,7 +134,7 @@ class Mibei77Collector(BaseCollector):
         ]
 
         for pattern in excluded_patterns:
-            if re.search(pattern, link, re.IGNORECASE):
+            if re.search(pattern, url, re.IGNORECASE):
                 return False
 
         return True
@@ -171,7 +171,7 @@ class Mibei77Collector(BaseCollector):
             for table in tables:
                 table_nodes = self.parse_node_text(table)
                 nodes.extend(table_nodes)
-        except:
-            pass
+        except Exception as e:
+            self.logger.debug(f"表格解析失败: {str(e)}")
 
         return list(set(nodes))  # 去重
