@@ -307,6 +307,18 @@ WEBSITES = {
             r'http://stairnode\.cczzuu\.top/node/\d{8}-(?:v2ray|clash)\.(?:txt|yaml)',
         ],
     },
+    "clashmeta": {
+        "name": "Clash Meta",
+        "url": "https://clash-meta.github.io/",
+        "enabled": True,
+        "collector_key": "clashmeta",  # 对应收集器插件的关键字
+        "selectors": [
+            'a[href*="/free-nodes/"]',
+        ],
+        "patterns": [
+            r'https://clash-meta\.github\.io/uploads/\d{4}/\d{2}/[^\s]+',
+        ],
+    },
 }
 
 # 通用选择器（当特定网站选择器失败时使用）

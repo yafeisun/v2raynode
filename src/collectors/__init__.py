@@ -24,6 +24,7 @@ try:
     from .oneclash import OneClashCollector
     from .xinye import XinyeCollector
     from .stairnode import StairNodeCollector
+    from .clashmeta import ClashMetaCollector
 except ImportError as e:
     print(f"导入收集器模块失败: {e}")
     sys.exit(1)
@@ -43,6 +44,7 @@ COLLECTOR_MAPPING = {
     "la": LaCollector,
     "xinye": XinyeCollector,
     "stairnode": StairNodeCollector,
+    "clashmeta": ClashMetaCollector,
 }
 
 
