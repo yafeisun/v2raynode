@@ -6,6 +6,7 @@
 """
 
 import os
+import re
 import time
 from datetime import datetime
 from typing import Dict, List, Any
@@ -21,6 +22,64 @@ class ResultManager:
     def __init__(self):
         self.logger = get_logger("result_manager")
         self.file_handler = FileHandler()
+
+    def _clean_node_name(self, node: str) -> str:
+        """
+        清理节点名称中的广告信息
+
+        Args:
+            node: 节点字符串
+
+        Returns:
+            清理后的节点字符串
+        """
+        # 分离节点协议和名称部分
+        if '#' in node:
+            protocol_part, name_part = node.rsplit('#', 1)
+            # URL解码名称部分
+            from urllib.parse import unquote
+            decoded_name = unquote(name_part)
+            
+            # 清理广告信息
+            # 1. 移除括号内的内容（包括括号）
+            cleaned_name = re.sub(r'\([^)]*\)', '', decoded_name)
+            
+            # 2. 移除 | 后面的内容
+            cleaned_name = re.sub(r'\|.*', '', cleaned_name)
+            
+            # 3. 移除常见的广告关键词和网站名称
+            ad_patterns = [
+                r'\s*free-nodes',
+                r'\s*free\.nodes',
+                r'\s*v2clash\.blog',
+                r'\s*mibei77\.com',
+                r'\s*clashnode\.cc',
+                r'\s*clashnodev2ray',
+                r'\s*freeclashnode',
+                r'\s*freev2raynode',
+                r'\s*持续更新',
+                r'\s*202\d-\d{1,2}-\d{1,2}',
+                r'\s*@[\w.-]+',
+            ]
+            
+            for pattern in ad_patterns:
+                cleaned_name = re.sub(pattern, '', cleaned_name, flags=re.IGNORECASE)
+            
+            # 4. 清理多余空格和特殊符号
+            cleaned_name = re.sub(r'\s+', ' ', cleaned_name)
+            cleaned_name = cleaned_name.strip(' -|')
+            
+            # 如果清理后名称为空或太短，使用默认名称
+            if len(cleaned_name) < 2:
+                cleaned_name = "Node"
+            
+            # 重新编码名称部分
+            from urllib.parse import quote
+            encoded_name = quote(cleaned_name)
+            
+            return f"{protocol_part}#{encoded_name}"
+        
+        return node
 
     def save_results(self, results: Dict[str, Any]) -> bool:
         """
@@ -58,10 +117,13 @@ class ResultManager:
             if all_nodes:
                 unique_nodes = list(set(all_nodes))
 
+                # 清理节点名称中的广告信息
+                cleaned_nodes = [self._clean_node_name(node) for node in unique_nodes]
+
                 # 保存到日期目录
                 total_file = os.path.join(result_dir, "nodetotal.txt")
                 with open(total_file, "w", encoding="utf-8") as f:
-                    for node in unique_nodes:
+                    for node in cleaned_nodes:
                         f.write(f"{node}\n")
 
                 # 同时保存到根目录的result文件夹
@@ -70,11 +132,11 @@ class ResultManager:
                 root_total_file = os.path.join(root_result_dir, "nodetotal.txt")
 
                 with open(root_total_file, "w", encoding="utf-8") as f:
-                    for node in unique_nodes:
+                    for node in cleaned_nodes:
                         f.write(f"{node}\n")
 
                 self.logger.info(
-                    f"保存了 {len(unique_nodes)} 个去重节点到 {total_file}"
+                    f"保存了 {len(cleaned_nodes)} 个去重节点到 {total_file}"
                 )
                 self.logger.info(f"同时同步保存到 {root_total_file}")
                 return True

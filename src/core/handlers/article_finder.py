@@ -112,22 +112,6 @@ class ArticleFinder:
         if exclusion_reasons:
             self.logger.debug(f"链接排除统计: {exclusion_reasons}")
 
-        # 显示前几个带日期的链接
-        if dated_links:
-            sample = dated_links[:5]
-            for item in sample:
-                self.logger.debug(
-                    f"  📅 日期链接: {item['date'].strftime('%Y-%m-%d')} - {item['url'][:80]}... (文本: {item['text'][:30] if item['text'] else 'N/A'})"
-                )
-        else:
-            # 显示一些样例链接，帮助诊断问题
-            self.logger.warning(f"未找到带日期的链接，显示前10个链接样例:")
-            sample_links = all_links[:10]
-            for i, link in enumerate(sample_links):
-                href = link.get("href", "")
-                text = link.get_text(strip=True)[:50]
-                self.logger.warning(f"  [{i + 1}] {href[:80]}... (文本: {text})")
-
         # 按日期排序：今天的在前，其次按日期新旧
         dated_links.sort(key=lambda x: (not x["is_today"], x["days_diff"]))
 
@@ -173,7 +157,14 @@ class ArticleFinder:
                     self.logger.info(f"通过选择器找到文章: {article_url}")
                     return article_url
 
-        # 如果都没找到，返回None
+        # 如果所有方法都失败，才显示警告信息
+        self.logger.warning(f"未找到带日期的链接，显示前3个链接样例:")
+        sample_links = all_links[:3]
+        for i, link in enumerate(sample_links):
+            href = link.get("href", "")
+            text = link.get_text(strip=True)[:50]
+            self.logger.warning(f"  [{i + 1}] {href[:80]}... (文本: {text})")
+        
         self.logger.warning(f"未找到文章链接")
         return None
 
