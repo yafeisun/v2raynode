@@ -38,7 +38,7 @@ WEBSITES = {
     "clashnodev2ray": {
         "name": "ClashNodeV2Ray",
         "url": "https://clashnodev2ray.github.io/",
-        "enabled": True,
+        "enabled": False,  # 网站已停止更新（2025年后无新内容）
         "collector_key": "clashnodev2ray",  # 对应收集器插件的关键字
         "selectors": [
             "h1 a",
@@ -69,7 +69,7 @@ WEBSITES = {
     "wanzhuanmi": {
         "name": "玩转迷",
         "url": "https://wanzhuanmi.com/",
-        "enabled": True,
+        "enabled": False,  # 网站已停止更新（2025年后无新内容）
         "collector_key": "wanzhuanmi",  # 对应收集器插件的关键字
         "selectors": [
             'a[href*="/archives/"]',
@@ -131,7 +131,7 @@ WEBSITES = {
     "datiya": {
         "name": "Datiya",
         "url": "https://free.datiya.com/",
-        "enabled": True,
+        "enabled": False,  # 网站已失效（无法访问）
         "collector_key": "datiya",  # 对应收集器插件的关键字
         "selectors": [
             "article a",
@@ -153,7 +153,7 @@ WEBSITES = {
     "telegeam": {
         "name": "Telegeam",
         "url": "https://telegeam.github.io/clashv2rayshare/",
-        "enabled": True,
+        "enabled": False,  # 订阅链接域名已失效（sfdr.zaixianyouxi.dpdns.org 返回404）
         "collector_key": "telegeam",  # 对应收集器插件的关键字
         "selectors": [
             "h1 a",
