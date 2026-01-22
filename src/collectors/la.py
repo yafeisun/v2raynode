@@ -93,6 +93,11 @@ class LaCollector(BaseCollector):
                         for x in ["category", "tag", "page", "search", "about", "feed"]
                     ):
                         article_url = self._process_url(href)
+                        # 85LA特殊处理：如果找到的是.txt文件，直接返回特殊标记
+                        if ".txt" in href:
+                            self.logger.info(f"找到订阅链接（非文章）: {article_url}")
+                            # 返回特殊标记，表示直接从订阅链接获取节点
+                            return f"{article_url}#direct_subscription"
                         self.logger.info(f"通过日期匹配找到文章: {article_url}")
                         return article_url
 

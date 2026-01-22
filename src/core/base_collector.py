@@ -1194,6 +1194,12 @@ class BaseCollector(ABC):
     def get_v2ray_subscription_links(self, article_url):
         """获取V2Ray订阅链接"""
         try:
+            # 检查是否为特殊标记（直接订阅链接）
+            if article_url.endswith("#direct_subscription"):
+                subscription_url = article_url.replace("#direct_subscription", "")
+                self.logger.info(f"检测到直接订阅链接: {subscription_url}")
+                return [subscription_url]
+
             self.logger.info(f"解析文章: {article_url}")
             response = self._make_request(article_url)
 
