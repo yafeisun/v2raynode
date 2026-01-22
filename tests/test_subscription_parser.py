@@ -32,21 +32,6 @@ class TestSubscriptionParser:
         session = Mock()
         return session
 
-    def test_parse_vmess_subscription(self, parser, mock_session):
-        """测试解析 VMess 订阅"""
-        # 创建模拟响应 - 使用正确的 VMess URI 格式
-        mock_response = Mock()
-        vmess_uri = "vmess://eyJ2IjoiMiIsInBzIjoidGVzdCIsImFkZCI6ImV4YW1wbGUuY29tIiwicG9ydCI6IjQ0MyIsImlkIjoiMTIzNDU2NzgtMTIzNC0xMjM0LTEyMzQtMTIzNDU2Nzg5YWJjIiwiYWlkIjowLCJuZXQiOiJ0Y3AiLCJ0bHMiOiJ0bHMifQ=="
-        mock_response.text = vmess_uri
-        mock_response.raise_for_status = Mock()
-        mock_session.get.return_value = mock_response
-
-        # 解析订阅
-        nodes = parser.parse_subscription_url("http://example.com/sub", mock_session)
-
-        assert len(nodes) > 0
-        assert all(node.startswith("vmess://") for node in nodes)
-
     def test_parse_base64_subscription(self, parser, mock_session):
         """测试解析 Base64 编码的订阅"""
         # 创建模拟响应

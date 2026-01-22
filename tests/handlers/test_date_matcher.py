@@ -123,7 +123,8 @@ class TestDateMatcher:
         """测试查找今日文章"""
         soup = BeautifulSoup(sample_html, "html.parser")
 
-        article_url = DateMatcher.find_today_article(soup)
+        # find_today_article 需要传入 selectors 参数
+        article_url = DateMatcher.find_today_article(soup, selectors=["a"])
 
         assert article_url is not None
         assert "2026-01-21" in article_url or "1月21日" in article_url
@@ -180,7 +181,7 @@ class TestDateMatcher:
         html = "<html><body></body></html>"
         soup = BeautifulSoup(html, "html.parser")
 
-        article_url = DateMatcher.find_today_article(soup)
+        article_url = DateMatcher.find_today_article(soup, selectors=["a"])
 
         assert article_url is None
 
@@ -257,8 +258,9 @@ class TestDateMatcher:
         </html>
         """
         soup = BeautifulSoup(html, "html.parser")
-        selectors = [".article a", "h2 a"]
+        selectors = ["a[href*='2026-01-21']"]  # 修改 selectors 以匹配 HTML 中的 a 标签
 
         article_url = DateMatcher.find_today_article(soup, selectors)
 
         assert article_url is not None
+        assert "2026-01-21" in article_url

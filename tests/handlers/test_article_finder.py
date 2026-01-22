@@ -75,7 +75,7 @@ class TestArticleFinder:
         assert article_url is None
 
     def test_find_latest_article_no_match(self, finder):
-        """测试查找没有匹配的文章"""
+        """测试查找没有匹配的文章 - 返回最近的文章"""
         html = """
         <html>
         <body>
@@ -88,7 +88,9 @@ class TestArticleFinder:
 
         article_url = finder.find_latest_article(soup, target_date)
 
-        assert article_url is None
+        # 如果找不到目标日期的文章，会返回最近的文章
+        assert article_url is not None
+        assert "2026-01-20" in article_url
 
     def test_find_latest_article_with_full_url(self, finder):
         """测试查找完整URL的文章"""

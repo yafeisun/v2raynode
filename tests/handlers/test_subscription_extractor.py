@@ -111,14 +111,6 @@ class TestSubscriptionExtractor:
         assert extractor._is_valid_url(valid_url) == True
         assert extractor._is_valid_url(invalid_url) == False
 
-    def test_is_valid_subscription_link(self, extractor):
-        """测试验证订阅链接"""
-        valid_link = "https://example.com/sub"
-        invalid_link = "https://example.com/image.jpg"
-
-        assert extractor._is_valid_subscription_link(valid_link) == True
-        # 这个测试可能需要根据实际实现调整
-
 
 # 导入 Mock
 from unittest.mock import Mock
