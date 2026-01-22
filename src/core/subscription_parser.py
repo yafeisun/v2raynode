@@ -205,6 +205,36 @@ class SubscriptionParser:
                     }
                 )
                 temp_session.verify = False
+                temp_session.trust_env = False  # 禁用环境变量中的代理
+
+                # 配置SSL上下文以兼容更多网站
+                import ssl
+                try:
+                    from urllib3.util.ssl_ import create_urllib3_context
+                    from requests.adapters import HTTPAdapter
+
+                    # 创建自定义SSL上下文
+                    ssl_context = create_urllib3_context()
+                    ssl_context.check_hostname = False
+                    ssl_context.verify_mode = ssl.CERT_NONE
+                    ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
+                    ssl_context.set_ciphers('DEFAULT:@SECLEVEL=1')
+
+                    # 创建自定义HTTPAdapter
+                    class SSLAdapter(HTTPAdapter):
+                        def init_poolmanager(self, *args, **kwargs):
+                            kwargs['ssl_context'] = ssl_context
+                            return super().init_poolmanager(*args, **kwargs)
+
+                    # 应用SSL上下文到session
+                    temp_session.mount('https://', SSLAdapter(
+                        max_retries=3,
+                        pool_connections=10,
+                        pool_maxsize=10
+                    ))
+                except Exception as e:
+                    pass  # SSL配置失败不影响其他功能
+
                 response = temp_session.get(url, timeout=self.timeout)
 
             response.raise_for_status()

@@ -335,6 +335,12 @@ SUBSCRIPTION_PATTERNS = [
     r'["\']((?:https?://[^\s\'"]*?/api[^\s\'"]*?))["\']',
     r'["\']((?:https?://[^\s\'"]*?\.txt))["\']',  # 通用.txt文件模式
     r'https?://[^\s\'"\)]*\.txt',  # 独立的.txt文件模式
+    r'["\']((?:https?://[^\s\'"]*?\.yaml))["\']',  # 通用.yaml文件模式
+    r'https?://[^\s\'"\)]*\.yaml',  # 独立的.yaml文件模式
+    r'["\']((?:https?://[^\s\'"]*?\.yml))["\']',  # 通用.yml文件模式
+    r'https?://[^\s\'"\)]*\.yml',  # 独立的.yml文件模式
+    r'["\']((?:https?://[^\s\'"]*?\.json))["\']',  # 通用.json文件模式
+    r'https?://[^\s\'"\)]*\.json',  # 独立的.json文件模式
 ]
 
 # 非节点订阅链接排除模式（排除明显不是V2Ray节点的链接）
@@ -392,13 +398,11 @@ BASE64_PATTERNS = [
 # 这些网站通过代理无法正常访问，需要使用浏览器直连访问
 # 当前配置：
 # - 浏览器直连：freeclashnode, mibei77, clashnodev2ray, wanzhuanmi, cfmem, telegeam, clashnodecc, clashgithub, oneclash, eighty_five_la
-# - 代理访问：proxyqueen, datiya, freev2raynode
+# - 代理访问：proxyqueen, datiya, freev2raynode, mibei77, cfmem
 BROWSER_ONLY_SITES = [
     "freeclashnode",
-    "mibei77",
     "clashnodev2ray",
     "wanzhuanmi",
-    "cfmem",
     "telegeam",
     "clashnodecc",  # 文章页面需要浏览器直连访问
     "clashgithub",  # 固定文章链接需要浏览器直连访问

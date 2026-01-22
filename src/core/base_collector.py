@@ -249,6 +249,16 @@ class BaseCollector(ABC):
             # 记录文章URL
             self.last_article_url = article_url
 
+            # 检查是否为特殊标记（直接订阅链接）
+            if article_url.endswith("#direct_subscription"):
+                subscription_url = article_url.replace("#direct_subscription", "")
+                self.logger.info(f"检测到直接订阅链接: {subscription_url}")
+                return {
+                    "article_url": article_url,
+                    "subscription_links": [subscription_url],
+                    "raw_data": "",
+                }
+
             # 访问文章页面并提取订阅链接
             # 对于 BROWSER_ONLY_SITES，直接使用浏览器访问（不使用代理）
             from src.config.websites import BROWSER_ONLY_SITES
