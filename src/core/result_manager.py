@@ -62,8 +62,8 @@ class ResultManager:
                 r'\s*@[\w.-]+',
                 # 移除通用的网站域名广告（包括中文描述前的整个广告文本）
                 r'[^：|]+：\s*[\w-]+\.(com|net|org|cn|io|top|xyz|cc|me|tv|us|uk|jp|kr|sg|hk|tw|de|fr|ru|ca|au|in|br|es|it|nl|se|no|fi|dk|pl|cz|hu|ro|bg|gr|pt|ie|at|ch|be|lu|cy|mt|si|sk|hr|ba|mk|al|rs|me|ad|li|mc|sm|va|is|fo|gl|ax|ee|lv|lt|by|ua|md|ge|am|az|kz|uz|tj|kg|tm|mn|af|pk|in|np|bt|bd|lk|mm|th|kh|la|vn|my|sg|id|ph|bn|tw|hk|mo|jp|kr|cn|kp)',
-                # 移除域名开头的广告（如 www.85la.com）
-                r'^(?:www\.)?[\w-]+\.(com|net|org|cn|io|top|xyz|cc|me|tv|us|uk|jp|kr|sg|hk|tw|de|fr|ru|ca|au|in|br|es|it|nl|se|no|fi|dk|pl|cz|hu|ro|bg|gr|pt|ie|at|ch|be|lu|cy|mt|si|sk|hr|ba|mk|al|rs|me|ad|li|mc|sm|va|is|fo|gl|ax|ee|lv|lt|by|ua|md|ge|am|az|kz|uz|tj|kg|tm|mn|af|pk|in|np|bt|bd|lk|mm|th|kh|la|vn|my|sg|id|ph|bn|tw|hk|mo|jp|kr|cn|kp)',
+                # 移除任意位置的网站域名广告（如 www.85la.com）
+                r'(?:www\.)?[\w-]+\.(com|net|org|cn|io|top|xyz|cc|me|tv|us|uk|jp|kr|sg|hk|tw|de|fr|ru|ca|au|in|br|es|it|nl|se|no|fi|dk|pl|cz|hu|ro|bg|gr|pt|ie|at|ch|be|lu|cy|mt|si|sk|hr|ba|mk|al|rs|me|ad|li|mc|sm|va|is|fo|gl|ax|ee|lv|lt|by|ua|md|ge|am|az|kz|uz|tj|kg|tm|mn|af|pk|in|np|bt|bd|lk|mm|th|kh|la|vn|my|sg|id|ph|bn|tw|hk|mo|jp|kr|cn|kp)',
             ]
             
             for pattern in ad_patterns:
