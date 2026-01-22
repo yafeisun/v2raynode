@@ -38,20 +38,23 @@ WEBSITES = {
     "clashnodev2ray": {
         "name": "ClashNodeV2Ray",
         "url": "https://clashnodev2ray.github.io/",
-        "enabled": False,  # 网站已停止更新（2025年后无新内容）
+        "enabled": True,
         "collector_key": "clashnodev2ray",  # 对应收集器插件的关键字
         "selectors": [
             "h1 a",
             ".post-title a",
             "article h1 a",
             "h2 a",
+            'a[href*="/202"]',
             'a[href*="/2025"]',
-            'a[href*="/2025/12"]',
+            'a[href*="/2026"]',
         ],
         "patterns": [
             r"vmess://[^\s\n\r]+",
             r"vless://[^\s\n\r]+",
             r"trojan://[^\s\n\r]+",
+            r'hysteria2?://[^\s\n\r]+',
+            r"ss://[^\s\n\r]+",
             r'https?://[^\s\'"]*\.txt[^\s\'"]*',
         ],
     },
@@ -69,7 +72,7 @@ WEBSITES = {
     "wanzhuanmi": {
         "name": "玩转迷",
         "url": "https://wanzhuanmi.com/",
-        "enabled": False,  # 网站已停止更新（2025年后无新内容）
+        "enabled": True,
         "collector_key": "wanzhuanmi",  # 对应收集器插件的关键字
         "selectors": [
             'a[href*="/archives/"]',
@@ -77,9 +80,17 @@ WEBSITES = {
             "h2 a",
             ".entry-title a",
             "article h2 a",
+            'a[href*="/202"]',
+            'a[href*="/2025"]',
+            'a[href*="/2026"]',
         ],
         "patterns": [
-            r'https?://[^\s\'"]*?\.(?:top|com|org|net|io|gg|tk|ml)[^\s\'"]*(?:/sub|/api|/link)[^\s\'"]*'
+            r'https?://[^\s\'"]*?\.(?:top|com|org|net|io|gg|tk|ml)[^\s\'"]*(?:/sub|/api|/link)[^\s\'"]*',
+            r"vmess://[^\s\n\r]+",
+            r"vless://[^\s\n\r]+",
+            r"trojan://[^\s\n\r]+",
+            r'ss://[^\s\n\r]+',
+            r'https?://[^\s\'"]*\.txt[^\s\'"]*',
         ],
     },
     "cfmem": {
@@ -131,7 +142,7 @@ WEBSITES = {
     "datiya": {
         "name": "Datiya",
         "url": "https://free.datiya.com/",
-        "enabled": False,  # 网站已失效（无法访问）
+        "enabled": True,
         "collector_key": "datiya",  # 对应收集器插件的关键字
         "selectors": [
             "article a",
@@ -153,7 +164,7 @@ WEBSITES = {
     "telegeam": {
         "name": "Telegeam",
         "url": "https://telegeam.github.io/clashv2rayshare/",
-        "enabled": False,  # 订阅链接域名已失效（sfdr.zaixianyouxi.dpdns.org 返回404）
+        "enabled": True,
         "collector_key": "telegeam",  # 对应收集器插件的关键字
         "selectors": [
             "h1 a",
@@ -161,7 +172,8 @@ WEBSITES = {
             "article h1 a",
             "h2 a",
             'a[href*="/202"]',
-            'a[href*="/2025/12"]',
+            'a[href*="/2025"]',
+            'a[href*="/2026"]',
         ],
         "patterns": [
             r"vmess://[^\s\n\r]+",

@@ -90,13 +90,49 @@ class SubscriptionParser:
                 self.logger.warning(f"❌ {simplified_url}: 无法获取订阅内容")
                 return []
             elif not content.strip():
-                simplified_url = (
-                    url.replace("https://", "").replace("http://", "").split("/")[0]
-                    + "/"
-                    + "/".join(url.split("/")[-2:])
-                )
-                self.logger.warning(f"❌ {simplified_url}: 订阅内容为空")
-                return []
+                # 尝试使用前一天的日期重试（针对Datiya等网站）
+                if "datiya" in url.lower():
+                    import re
+                    from datetime import datetime, timedelta
+                    
+                    # 提取日期格式
+                    date_match = re.search(r'(\d{8})', url)
+                    if date_match:
+                        date_str = date_match.group(1)
+                        try:
+                            date_obj = datetime.strptime(date_str, "%Y%m%d")
+                            prev_date = date_obj - timedelta(days=1)
+                            prev_date_str = prev_date.strftime("%Y%m%d")
+                            
+                            # 替换日期
+                            retry_url = url.replace(date_str, prev_date_str)
+                            self.logger.info(f"尝试使用前一天日期: {retry_url}")
+                            
+                            # 重试获取内容
+                            retry_content = self._fetch_subscription_content(retry_url, session)
+                            if retry_content and retry_content.strip():
+                                content = retry_content
+                                self.logger.info(f"✓ 使用前一天日期成功获取内容")
+                            else:
+                                simplified_url = (
+                                    url.replace("https://", "").replace("http://", "").split("/")[0]
+                                    + "/"
+                                    + "/".join(url.split("/")[-2:])
+                                )
+                                self.logger.warning(f"❌ {simplified_url}: 订阅内容为空，前一天日期也无法获取")
+                                return []
+                        except Exception as e:
+                            self.logger.warning(f"日期转换失败: {str(e)}")
+                
+                # 如果重试后仍为空，返回空列表
+                if not content.strip():
+                    simplified_url = (
+                        url.replace("https://", "").replace("http://", "").split("/")[0]
+                        + "/"
+                        + "/".join(url.split("/")[-2:])
+                    )
+                    self.logger.warning(f"❌ {simplified_url}: 订阅内容为空")
+                    return []
 
             # 解析不同格式的内容
             nodes = self._parse_subscription_content(content)
