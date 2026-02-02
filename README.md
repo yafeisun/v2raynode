@@ -142,7 +142,6 @@ https://raw.githubusercontent.com/yafeisun/v2raynode/refs/heads/main/result/kari
 | 13 | 85LA | https://www.85la.com/internet-access/free-network-nodes | 综合资源 |
 | 14 | Xinye | https://www.xinye.eu.org/ | GitHub raw 源 |
 | 15 | StairNode | https://www.stairnode.com/freenode | 免费节点 |
-| 16 | Clash Meta | https://clash-meta.github.io/ | Clash Meta 节点 |
 
 详细的网站配置请查看: [config/websites.py](config/websites.py)
 
