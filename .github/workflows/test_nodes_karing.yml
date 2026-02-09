@@ -246,9 +246,8 @@ jobs:
             print("🚀 开始延迟测试...")
             results = await tester.test_nodes_batch(node_configs, max_concurrent=8)
 
-            # 过滤有效节点 (延迟 < 3000ms)
-            valid_results = [r for r in results if r.get("latency", -1) > 0 and r.get("latency", -1) < 3000]
-
+            # 过滤有效节点 (延迟 < 1000ms)
+            valid_results = [r for r in results if r.get("latency", -1) > 0 and r.get("latency", -1) < 1000]
             # 按延迟排序
             valid_results.sort(key=lambda x: x.get("latency", 9999))
 
@@ -275,7 +274,7 @@ jobs:
         echo "📊 Configuration:"
         echo "  ⏰ Schedule: Every 6 hours (00:00, 06:00, 12:00, 18:00 Beijing Time)"
         echo "  🔧 Phase 1: Latency test only (concurrent=8, timeout=10s)"
-        echo "  🎯 Filter: Latency < 3000ms"
+        echo "  🎯 Filter: Latency < 1000ms"
         echo "  📝 Strategy: Based on Karing latency testing logic"
 
         # 检查节点文件是否存在且不为空
@@ -456,7 +455,7 @@ jobs:
           echo "**测试策略**:" >> $GITHUB_STEP_SUMMARY
           echo "- 使用Karing延迟测试逻辑进行节点连通性测试" >> $GITHUB_STEP_SUMMARY
           echo "- 测试多个URL端点的延迟并取平均值" >> $GITHUB_STEP_SUMMARY
-          echo "- 只保留延迟小于3000ms的有效节点" >> $GITHUB_STEP_SUMMARY
+          echo "- 只保留延迟小于1000ms的有效节点" >> $GITHUB_STEP_SUMMARY
         else
           echo "- **更新状态**: ℹ️ 无更新" >> $GITHUB_STEP_SUMMARY
         fi
