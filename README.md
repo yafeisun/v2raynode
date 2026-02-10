@@ -31,7 +31,7 @@ https://raw.githubusercontent.com/yafeisun/v2raynode/refs/heads/main/result/v2ra
 
 ### Karing延迟测试订阅链接
 
-经过延迟测试（<3000ms）筛选的有效节点，按延迟排序。
+经过延迟测试（<1000ms）筛选的有效节点，按延迟排序。
 
 ```
 https://raw.githubusercontent.com/yafeisun/v2raynode/refs/heads/main/result/karing.txt
@@ -105,7 +105,7 @@ https://raw.githubusercontent.com/yafeisun/v2raynode/refs/heads/main/result/kari
 
 **Karing延迟测试流程**：
 1. 使用Karing延迟测试工具测试节点延迟
-2. 过滤标准：延迟 < 3000ms
+2. 过滤标准：延迟 < 1000ms
 3. 按延迟排序 → 保存到 `result/karing.txt`
 
 ---

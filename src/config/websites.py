@@ -370,6 +370,7 @@ EXCLUDED_SUBSCRIPTION_PATTERNS = [
     r".*(?:subconverter|subx|sub\.xeton).*",
     r".*(?:api\.v1\.mk|v1\.mk).*",
     r".*(?:raw\.git).*",
+    r".*fenxianglu\.cn.*",  # 排除 fenxianglu.cn (文档分享网站)
     # 排除包含特定关键词的链接
     r".*(?:免费机场|机场推荐|vpn推荐|科学上网).*",
     r".*(?:广告|推广|aff).*",
