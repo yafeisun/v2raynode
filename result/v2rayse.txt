@@ -1,11 +1,2 @@
-vmess://`、`vless://`、`trojan://`、`ss://`，也支持整段
-vmess://...\nvless://...\nss://...
-vless://`、`trojan://`、`ss://`，也支持整段
-vless://...\nss://...
-trojan://`、`ss://`，也支持整段
-ss://。
-ss://ws.ifelse.io
-ss://。
-ss://，不要指望浏览器放行
-ss://`、`vless://`、`trojan://`、`ss://`，也支持整段
-ss://...\nvless://...\nss://...
+vless://9bc70c95-353d-498a-b8d6-df76fbb5cd21@hk.ainio.cc.cd:2087?alpn=h2%2Chttp%2F1.1&amp;ech=AGH%2BDQBdAAAgACBU7e8e%2FSzrzFSOoQa7OJLH%2B3bU9eXwXljHWIRzvycHAAkAAEAAQABAAIAAQADAAIAAQACAAIAAgADAAMAAQADAAIAAwADAA5oay5haW5pby5jYy5jZAAA&amp;encryption=none&amp;fp=chrome&amp;host=hk.ainio.cc.cd&amp;path=%2Findex&amp;security=tls&amp;sni=hk.ainio.cc.cd&amp;type=ws#vless-free
+ss://9bc70c95-353d-498a-b8d6-df76fbb5cd21@hk.ainio.cc.cd:2087?alpn=h2%2Chttp%2F1.1&amp;ech=AGH%2BDQBdAAAgACBU7e8e%2FSzrzFSOoQa7OJLH%2B3bU9eXwXljHWIRzvycHAAkAAEAAQABAAIAAQADAAIAAQACAAIAAgADAAMAAQADAAIAAwADAA5oay5haW5pby5jYy5jZAAA&amp;encryption=none&amp;fp=chrome&amp;host=hk.ainio.cc.cd&amp;path=%2Findex&amp;security=tls&amp;sni=hk.ainio.cc.cd&amp;type=ws#vless-free
