@@ -1,17 +1,14 @@
 # FreeClashNode 文章和订阅链接
-# 更新时间: 2026-10-13 00:34:04
+# 更新时间: 2026-10-13 22:51:41
 ------------------------------------------------------------
 
 ## 文章链接
-https://www.freeclashnode.com/free-node/free-shadowrocket-node-2026-10-12.htm
+https://www.freeclashnode.com/free-node/2026-10-13-shadowrocket-node.htm
 
 ## 订阅链接
-https://node.freeclashnode.com/uploads/2026/10/1-20261012.yaml
-https://node.freeclashnode.com/uploads/2026/10/20261012.json
-https://node.freeclashnode.com/uploads/2026/10/2-20261012.yaml
-https://node.freeclashnode.com/uploads/2026/10/0-20261012.yaml
-https://node.freeclashnode.com/uploads/2026/10/1-20261012.txt
-https://node.freeclashnode.com/uploads/2026/10/2-20261012.txt
-https://node.freeclashnode.com/uploads/2026/10/3-20261012.yaml
-https://node.freeclashnode.com/uploads/2026/10/4-20261012.txt
-https://node.freeclashnode.com/uploads/2026/10/3-20261012.txt
+https://node.freeclashnode.com/uploads/2026/10/4-20261013.yaml
+https://node.freeclashnode.com/uploads/2026/10/20261013.json
+https://node.freeclashnode.com/uploads/2026/10/1-20261013.yaml
+https://node.freeclashnode.com/uploads/2026/10/1-20261013.txt
+https://node.freeclashnode.com/uploads/2026/10/2-20261013.yaml
+https://node.freeclashnode.com/uploads/2026/10/4-20261013.txt
