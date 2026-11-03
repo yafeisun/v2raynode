@@ -1,10 +1,10 @@
 # ProxyQueen 文章和订阅链接
-# 更新时间: 2026-11-03 00:53:33
+# 更新时间: 2026-11-03 22:54:36
 ------------------------------------------------------------
 
 ## 文章链接
-https://www.proxyqueen.top/index.php/archives/594/
+https://www.proxyqueen.top/index.php/archives/595/
 
 ## 订阅链接
 https://www.fenxianglu.cn/highlightjs/docs/start/
-https://v2clash.blog/Link/20261102-v2ray.txt
+https://v2clash.blog/Link/20261103-v2ray.txt

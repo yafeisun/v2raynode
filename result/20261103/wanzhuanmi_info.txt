@@ -1,9 +1,9 @@
 # 玩转迷 文章和订阅链接
-# 更新时间: 2026-11-03 00:53:33
+# 更新时间: 2026-11-03 22:54:36
 ------------------------------------------------------------
 
 ## 文章链接
-https://wanzhuanmi.com/freenode/2026-11-02/
+https://wanzhuanmi.com/freenode/2026-11-03/
 
 ## 订阅链接
-https://nodesub.wanzhuanmi.com/2026/11/wzjd-20261102.txt
+https://nodesub.wanzhuanmi.com/2026/11/wzjd-20261103.txt

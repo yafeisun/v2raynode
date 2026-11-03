@@ -1,9 +1,9 @@
 # ClashNodeV2Ray 文章和订阅链接
-# 更新时间: 2026-11-03 00:53:33
+# 更新时间: 2026-11-03 22:54:36
 ------------------------------------------------------------
 
 ## 文章链接
-https://clashnodev2ray.github.io/2026/11/02/free-ssr-node/
+https://clashnodev2ray.github.io/2026/11/03/free-ssr-node/
 
 ## 订阅链接
-https://sfdr.zaixianyouxi.dpdns.org/uploads/2026/11/20261102.txt
+https://sfdr.zaixianyouxi.dpdns.org/uploads/2026/11/20261103.txt
