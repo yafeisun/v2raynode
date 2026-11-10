@@ -1,12 +1,13 @@
 # FreeV2rayNode 文章和订阅链接
-# 更新时间: 2026-11-10 01:13:24
+# 更新时间: 2026-11-10 23:28:29
 ------------------------------------------------------------
 
 ## 文章链接
-https://www.freev2raynode.com/free-node-subscription/2026-11-9-shadowrocket-node.htm
+https://www.freev2raynode.com/free-node-subscription/free-v2ray-2026-11-10.htm
 
 ## 订阅链接
-https://node.freev2raynode.com/uploads/2026/11/1-20261109.txt
-https://node.freev2raynode.com/uploads/2026/11/2-20261109.txt
-https://node.freev2raynode.com/uploads/2026/11/3-20261109.txt
-https://node.freev2raynode.com/uploads/2026/11/4-20261109.txt
+https://node.freev2raynode.com/uploads/2026/11/0-20261110.txt
+https://node.freev2raynode.com/uploads/2026/11/1-20261110.txt
+https://node.freev2raynode.com/uploads/2026/11/2-20261110.txt
+https://node.freev2raynode.com/uploads/2026/11/3-20261110.txt
+https://node.freev2raynode.com/uploads/2026/11/4-20261110.txt
